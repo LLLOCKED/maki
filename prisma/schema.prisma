@@ -1,0 +1,306 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?   @unique
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  favorites     Novel[]   @relation("UserFavorites")
+  comments      Comment[]
+  teamMemberships TeamMembership[]
+  ratings       Rating[]
+  collections   Collection[]
+  bookmarks     Bookmark[]
+  forumTopics   ForumTopic[]
+  forumComments ForumComment[]
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novels  Novel[]   @relation("CollectionNovels")
+}
+
+model Tag {
+  id      String      @id @default(cuid())
+  name    String      @unique
+  slug    String      @unique
+  novels  NovelTag[]
+}
+
+model NovelTag {
+  novelId String
+  tagId   String
+
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([novelId, tagId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  value     Int      // 1-5
+  userId    String
+  novelId   String
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, novelId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  novelId   String
+  status    String   // reading, planned, completed, dropped
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, novelId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ForumCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#6366f1")
+  order       Int      @default(0)
+  topics      ForumTopic[]
+  createdAt   DateTime @default(now())
+}
+
+model ForumTopic {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  userId      String
+  categoryId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  comments    ForumComment[]
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([userId])
+}
+
+model ForumComment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  topicId   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic   ForumTopic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  parent  ForumComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ForumComment[] @relation("CommentReplies")
+
+  @@index([topicId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Publisher {
+  id      String    @id @default(cuid())
+  name    String    @unique
+  novels  NovelPublisher[]
+}
+
+model Author {
+  id      String    @id @default(cuid())
+  name    String    @unique
+  novels  NovelAuthor[]
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  members     TeamMembership[]
+  chapters    Chapter[]
+}
+
+model TeamMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      String   @default("member") // owner, admin, member
+  joinedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model Novel {
+  id               String   @id @default(cuid())
+  title            String
+  originalName     String?
+  slug             String   @unique
+  description      String
+  coverUrl         String?
+  type             String   @default("ORIGINAL") // JAPAN, KOREA, CHINA, ENGLISH, ORIGINAL
+  status           String   @default("ONGOING") // ONGOING, COMPLETED, SUSPENDED
+  translationStatus String  @default("TRANSLATING") // TRANSLATING, DROPPED, COMPLETED, HIATUS
+  releaseYear      Int?
+  averageRating    Float    @default(0)
+  viewCount        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  chapters     Chapter[]
+  genres       NovelGenre[]
+  publishers   NovelPublisher[]
+  authors      NovelAuthor[]
+  favoritedBy  User[]       @relation("UserFavorites")
+  comments     Comment[]
+  ratings      Rating[]
+  tags         NovelTag[]
+  bookmarks    Bookmark[]
+  inCollections Collection[]  @relation("CollectionNovels")
+
+  @@index([slug])
+}
+
+model NovelPublisher {
+  novelId     String
+  publisherId String
+
+  novel     Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  publisher Publisher @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@id([novelId, publisherId])
+}
+
+model NovelAuthor {
+  novelId  String
+  authorId String
+
+  novel  Novel   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([novelId, authorId])
+}
+
+model Chapter {
+  id        String   @id @default(cuid())
+  title     String
+  number    Int
+  content   String
+  novelId   String
+  teamId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  novel    Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  comments Comment[]
+
+  @@index([novelId])
+  @@index([teamId])
+}
+
+model Genre {
+  id     String      @id @default(cuid())
+  name   String      @unique
+  slug   String      @unique
+  novels NovelGenre[]
+}
+
+model NovelGenre {
+  novelId String
+  genreId String
+
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([novelId, genreId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  novelId   String?
+  chapterId String?
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel    Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter  Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([parentId])
+}
