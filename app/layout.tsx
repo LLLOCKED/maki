@@ -54,7 +54,7 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <Navbar />
+            <Navbar session={session} />
             <main className="min-h-screen">{children}</main>
             <Footer />
           </ThemeProvider>

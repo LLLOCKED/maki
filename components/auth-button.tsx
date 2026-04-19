@@ -12,27 +12,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { LogIn, LogOut, User, Settings } from 'lucide-react'
-import { Session } from 'next-auth'
 
 interface AuthButtonProps {
-  session: Session | null
+  session: unknown
 }
 
 export default function AuthButton({ session }: AuthButtonProps) {
   const router = useRouter()
+  const sessionUser = session as { user?: { id?: string; name?: string | null; image?: string | null } | null } | null
 
-  if (session) {
+  if (sessionUser) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2">
             <User className="h-4 w-4" />
-            {session.user?.name || 'Профіль'}
+            {sessionUser.user?.name || 'Профіль'}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <Link href={`/user/${session.user?.id}`}>
+            <Link href={`/user/${sessionUser.user?.id}`}>
               <User className="mr-2 h-4 w-4" />
               Профіль
             </Link>
