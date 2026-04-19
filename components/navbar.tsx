@@ -28,7 +28,7 @@ export default function Navbar({ session }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-6">
-            <Link href="/" className="text-sm font-medium hover:text-primary">
+            <Link href="/catalog" className="text-sm font-medium hover:text-primary">
               Каталог
             </Link>
             {sessionUser?.user && (
@@ -83,7 +83,7 @@ export default function Navbar({ session }: NavbarProps) {
           <div className="md:hidden border-t">
             <nav className="container mx-auto flex flex-col gap-4 px-4 py-4">
               <Link
-                href="/"
+                href="/catalog"
                 className="flex items-center gap-2 text-sm font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >

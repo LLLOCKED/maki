@@ -1,57 +1,124 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
+import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '0')
-    const limit = parseInt(searchParams.get('limit') || '8')
+    const limit = parseInt(searchParams.get('limit') || '12')
     const skip = page * limit
 
-    const where = search
-      ? {
-          moderationStatus: 'APPROVED',
-          OR: [
-            { title: { contains: search } },
-            { originalName: { contains: search } },
-          ],
-        }
-      : { moderationStatus: 'APPROVED' }
+    const sortBy = searchParams.get('sortBy') || 'title'
+    const sortOrder = searchParams.get('sortOrder') || 'asc'
 
-    const novels = await prisma.novel.findMany({
-      where,
-      include: {
-        genres: {
-          include: { genre: true },
-        },
-        authors: {
-          include: { author: true },
-        },
-        chapters: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-            id: true,
-            title: true,
-            number: true,
-            createdAt: true,
-            teamId: true,
-          },
-        },
-        _count: {
-          select: { comments: true },
-        },
-      },
-      orderBy: {
-        title: 'asc',
-      },
-      skip,
-      take: limit,
+    const where = buildNovelWhereClause({
+      genres: searchParams.get('genres') || undefined,
+      tags: searchParams.get('tags') || undefined,
+      authors: searchParams.get('authors') || undefined,
+      type: searchParams.get('type') || undefined,
+      status: searchParams.get('status') || undefined,
+      translationStatus: searchParams.get('translationStatus') || undefined,
+      yearFrom: searchParams.get('yearFrom') || undefined,
+      yearTo: searchParams.get('yearTo') || undefined,
     })
 
-    const total = await prisma.novel.count({ where })
+    const orderBy: any = {}
+    if (sortBy === 'rating') {
+      orderBy.averageRating = sortOrder
+    } else if (sortBy === 'views') {
+      orderBy.viewCount = sortOrder
+    } else if (sortBy === 'year') {
+      orderBy.releaseYear = sortOrder
+    } else if (sortBy === 'created') {
+      orderBy.createdAt = sortOrder
+    } else {
+      orderBy.title = sortOrder
+    }
+
+    let novels: any[] = []
+    let total = 0
+
+    if (search) {
+      const searchPattern = `%${search}%`
+      const orderBySql = getOrderBySql(sortBy, sortOrder)
+
+      const novelResults = await prisma.$queryRaw<any[]>`
+        SELECT id FROM "Novel"
+        WHERE "moderationStatus" = 'APPROVED'
+        AND ("title" ILIKE ${searchPattern}
+          OR "originalName" ILIKE ${searchPattern})
+        ORDER BY ${Prisma.raw(orderBySql)}
+        LIMIT ${limit} OFFSET ${skip}
+      `
+
+      const novelIds = novelResults.map(n => n.id)
+
+      if (novelIds.length > 0) {
+        const novelsWithRelations = await prisma.novel.findMany({
+          where: { id: { in: novelIds } },
+          include: {
+            genres: { include: { genre: true } },
+            authors: { include: { author: true } },
+            chapters: {
+              where: { moderationStatus: 'APPROVED' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                createdAt: true,
+                teamId: true,
+              },
+            },
+            _count: { select: { comments: true } },
+          },
+        })
+
+        novels = novelIds.map(id => novelsWithRelations.find(n => n.id === id)).filter(Boolean) as any[]
+      }
+
+      const countResult = await prisma.$queryRaw<any[]>`
+        SELECT COUNT(*) as cnt FROM "Novel"
+        WHERE "moderationStatus" = 'APPROVED'
+        AND ("title" ILIKE ${searchPattern}
+          OR "originalName" ILIKE ${searchPattern})
+      `
+      total = Number(countResult[0]?.cnt || 0)
+    } else {
+      const [novelsResult, totalResult] = await Promise.all([
+        prisma.novel.findMany({
+          where,
+          include: {
+            genres: { include: { genre: true } },
+            authors: { include: { author: true } },
+            chapters: {
+              where: { moderationStatus: 'APPROVED' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                createdAt: true,
+                teamId: true,
+              },
+            },
+            _count: { select: { comments: true } },
+          },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.novel.count({ where }),
+      ])
+      novels = novelsResult
+      total = totalResult
+    }
 
     return NextResponse.json({
       novels,
@@ -124,7 +191,7 @@ export async function POST(request: Request) {
         tags: tagIds?.length
           ? {
               create: tagIds.map((tagId: string) => ({
-                tag: { connect: { id: tagId } },
+                tag: { connect: { tagId } },
               })),
             }
           : undefined,

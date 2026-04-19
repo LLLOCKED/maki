@@ -1,0 +1,187 @@
+import { Suspense } from 'react'
+import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+import HorizontalNovelCard from '@/components/horizontal-novel-card'
+import CatalogFilters from '@/components/catalog-filters'
+import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
+
+interface SearchParams {
+  search?: string
+  genres?: string
+  tags?: string
+  authors?: string
+  type?: string
+  status?: string
+  translationStatus?: string
+  yearFrom?: string
+  yearTo?: string
+  sortBy?: string
+  sortOrder?: string
+  page?: string
+}
+
+async function getFiltersData() {
+  const [genres, tags, authors] = await Promise.all([
+    prisma.genre.findMany({ orderBy: { name: 'asc' } }),
+    prisma.tag.findMany({ orderBy: { name: 'asc' } }),
+    prisma.author.findMany({ orderBy: { name: 'asc' } }),
+  ])
+  return { genres, tags, authors }
+}
+
+async function getNovels(searchParams: SearchParams) {
+  const page = parseInt(searchParams.page || '0')
+  const limit = 12
+  const skip = page * limit
+
+  const sortBy = searchParams.sortBy || 'title'
+  const sortOrder = searchParams.sortOrder || 'asc'
+  const where = buildNovelWhereClause(searchParams)
+
+  const orderBy: any = {}
+  if (sortBy === 'rating') {
+    orderBy.averageRating = sortOrder
+  } else if (sortBy === 'views') {
+    orderBy.viewCount = sortOrder
+  } else if (sortBy === 'year') {
+    orderBy.releaseYear = sortOrder
+  } else if (sortBy === 'created') {
+    orderBy.createdAt = sortOrder
+  } else {
+    orderBy.title = sortOrder
+  }
+
+  let novels: any[] = []
+  let total = 0
+
+  if (searchParams.search) {
+    const searchPattern = `%${searchParams.search}%`
+    const orderBySql = getOrderBySql(sortBy, sortOrder)
+
+    const novelResults = await prisma.$queryRaw<any[]>`
+      SELECT id FROM "Novel"
+      WHERE "moderationStatus" = 'APPROVED'
+      AND ("title" ILIKE ${searchPattern}
+        OR "originalName" ILIKE ${searchPattern})
+      ORDER BY ${Prisma.raw(orderBySql)}
+      LIMIT ${limit} OFFSET ${skip}
+    `
+
+    const novelIds = novelResults.map(n => n.id)
+
+    if (novelIds.length > 0) {
+      const novelsWithRelations = await prisma.novel.findMany({
+        where: { id: { in: novelIds } },
+        include: {
+          genres: { include: { genre: true } },
+          authors: { include: { author: true } },
+          chapters: {
+            where: { moderationStatus: 'APPROVED' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              title: true,
+              number: true,
+              createdAt: true,
+              teamId: true,
+            },
+          },
+          _count: { select: { comments: true } },
+        },
+      })
+
+      novels = novelIds.map(id => novelsWithRelations.find(n => n.id === id)).filter(Boolean) as any[]
+    }
+
+    const countResult = await prisma.$queryRaw<any[]>`
+      SELECT COUNT(*) as cnt FROM "Novel"
+      WHERE "moderationStatus" = 'APPROVED'
+      AND ("title" ILIKE ${searchPattern}
+        OR "originalName" ILIKE ${searchPattern})
+    `
+    total = Number(countResult[0]?.cnt || 0)
+  } else {
+    const [novelsResult, totalResult] = await Promise.all([
+      prisma.novel.findMany({
+        where,
+        include: {
+          genres: { include: { genre: true } },
+          authors: { include: { author: true } },
+          chapters: {
+            where: { moderationStatus: 'APPROVED' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              title: true,
+              number: true,
+              createdAt: true,
+              teamId: true,
+            },
+          },
+          _count: { select: { comments: true } },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.novel.count({ where }),
+    ])
+    novels = novelsResult
+    total = totalResult
+  }
+
+  return { novels, total, hasMore: skip + novels.length < total }
+}
+
+export const metadata = {
+  title: 'Каталог — RanobeHub',
+  description: 'Каталог новел: фільтруйте за жанрами, тегами, авторами, статусом та роком випуску',
+}
+
+export default async function CatalogPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const resolvedParams = await searchParams
+  const [{ genres, tags, authors }, { novels, total }] = await Promise.all([
+    getFiltersData(),
+    getNovels(resolvedParams),
+  ])
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="mb-6 text-3xl font-bold">Каталог</h1>
+
+      <Suspense fallback={<div>Завантаження...</div>}>
+        <CatalogFilters genres={genres} tags={tags} authors={authors} />
+      </Suspense>
+
+      <div className="mt-6">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Знайдено {total} новел
+        </p>
+
+        {novels.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <span className="text-6xl">📚</span>
+            <h2 className="mt-4 text-xl font-semibold">Нічого не знайдено</h2>
+            <p className="mt-2 text-muted-foreground">
+              Спробуйте змінити параметри фільтрації
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {novels.map((novel) => (
+              <HorizontalNovelCard
+                key={novel.id}
+                novel={{
+                  ...novel,
+                  genres: novel.genres,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

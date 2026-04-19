@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Github, Send } from 'lucide-react'
+import { Github, Send, Mail } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -8,9 +8,19 @@ export default function Footer() {
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex flex-col items-center gap-2 md:items-start">
             <span className="text-sm text-muted-foreground">© 2026 honni</span>
+            <a
+              href="mailto:support@honni.fun"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Mail className="h-4 w-4" />
+              support@honni.fun
+            </a>
           </div>
 
           <div className="flex items-center gap-6">
+            <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+              Контакти
+            </Link>
             <Link href="/rules" className="text-sm text-muted-foreground hover:text-foreground">
               Правила
             </Link>
