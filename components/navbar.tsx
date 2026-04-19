@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X, BookOpen, Plus, Search, MessageSquare, Bookmark } from 'lucide-react'
+import { signOut } from 'next-auth/react'
+import { Menu, X, BookOpen, Plus, Search, MessageSquare, Bookmark, User, Settings, LogOut } from 'lucide-react'
 import AuthButton from './auth-button'
 import ThemeToggle from './theme-toggle'
 import SearchButton from './search-overlay'
@@ -102,14 +103,42 @@ export default function Navbar({ session }: NavbarProps) {
                 Форум
               </Link>
               <div className="flex items-center gap-4 border-t pt-4">
-                {sessionUser?.user && (
+                {sessionUser?.user ? (
+                  <>
+                    <Link
+                      href={`/user/${sessionUser.user.id}`}
+                      className="flex items-center gap-2 text-sm font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <User className="h-4 w-4" />
+                      Профіль
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="flex items-center gap-2 text-sm font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Налаштування
+                    </Link>
+                    <button
+                      className="flex items-center gap-2 text-sm font-medium text-destructive"
+                      onClick={() => {
+                        setIsMenuOpen(false)
+                        signOut()
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Вийти
+                    </button>
+                  </>
+                ) : (
                   <Link
-                    href="/admin/novels/new"
-                    className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                    href="/login"
+                    className="flex items-center gap-2 text-sm font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Plus className="h-4 w-4" />
-                    Add title
+                    Увійти
                   </Link>
                 )}
                 <ThemeToggle />
