@@ -4,6 +4,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SessionProvider } from '@/components/session-provider'
 import Navbar from '@/components/navbar'
+import Footer from '@/components/footer'
 import { auth } from '@/lib/auth'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -55,6 +56,7 @@ export default async function RootLayout({
           >
             <Navbar />
             <main className="min-h-screen">{children}</main>
+            <Footer />
           </ThemeProvider>
         </SessionProvider>
       </body>
