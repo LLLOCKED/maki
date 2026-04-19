@@ -3,7 +3,7 @@
 ## 1. Project Overview
 
 **Type:** Full-stack Web Application (Next.js)
-**Core functionality:** A platform for reading ranobe/novels with chapter navigation, user accounts, and customizable reading experience.
+**Core functionality:** A platform for reading ranobe/novels with chapter navigation, user accounts, teams, moderation system, and customizable reading experience.
 **Target users:** Readers of light novels and ranobe who prefer web-based reading.
 
 ---
@@ -24,20 +24,28 @@
 
 ## 3. Data Models (Prisma Schema)
 
-### Relationships
-```
-User 1──∞ Account
-User 1──∞ Novel (favorites)
-Novel ∞──∞ Genre
-Novel 1──∞ Chapter
-```
-
 ### Models
-- **User** — id, name, email, image, createdAt, accounts, favorites
-- **Account** — id, userId, type, provider, providerAccountId, refresh_token, etc. (NextAuth)
-- **Novel** — id, title, description, coverUrl, author, slug, averageRating, createdAt, updatedAt, chapters[], genres[]
-- **Chapter** — id, title, number, content (Markdown), novelId, createdAt, updatedAt
-- **Genre** — id, name, slug, novels[]
+- **User** — id, name, email, image, role, createdAt, accounts, favorites, teamMemberships
+- **Account** — NextAuth OAuth accounts
+- **Session** — NextAuth sessions
+- **Novel** — id, title, originalName, slug, description, coverUrl, type, status, translationStatus, releaseYear, averageRating, viewCount, moderationStatus
+- **Chapter** — id, title, number, content, teamId, moderationStatus
+- **Genre** — id, name, slug
+- **Tag** — id, name, slug
+- **Author** — id, name
+- **Publisher** — id, name
+- **Team** — id, name, description
+- **TeamMembership** — userId, teamId, role
+- **Comment** — for novels and chapters
+- **Rating** — user rating for novels
+- **Bookmark** — user bookmarks (reading, planned, etc.)
+- **ForumCategory** — forum categories
+- **ForumTopic** — forum topics with votes
+- **ForumComment** — forum comments with nesting
+
+### Moderation
+- Novel, Chapter have `moderationStatus` (PENDING, APPROVED, REJECTED)
+- User has `role` (OWNER, ADMIN, MODERATOR, USER)
 
 ---
 
@@ -45,30 +53,56 @@ Novel 1──∞ Chapter
 
 ### Pages
 1. **Home Page** (`/`)
-   - Grid of novel cards
-   - Each card: cover image, title, author, rating (stars), genre tags
-   - Responsive: 1 col (mobile) → 2 cols (tablet) → 3-4 cols (desktop)
+   - New titles (posters)
+   - Popular novels
+   - Discussed novels
+   - Forum topics
 
-2. **Novel Page** (`/novel/[slug]`)
-   - Novel header: cover, title, author, description, rating
+2. **Catalog Page** (`/catalog`)
+   - Filters: genres, tags, authors, type, status, translation status, year range
+   - Sorting: by title, rating, views, year, creation date
+   - Case-insensitive search
+
+3. **Novel Page** (`/novel/[slug]`)
+   - Novel header: cover, title, original name, description, rating
    - Genre tags
-   - Chapter list (ordered by number)
+   - Chapter list grouped by team
    - "Start Reading" button → first chapter
+   - Admins see pending chapters with badge
 
-3. **Reader Page** (`/read/[slug]/[chapter]`)
+4. **Reader Page** (`/read/[slug]/[chapter]`)
    - Full-width reading area
    - Markdown content rendering
    - Settings panel (font size, theme)
+   - Translation selector (when multiple teams)
    - Navigation: Previous / Next chapter buttons
    - Progress indicator (Chapter X of Y)
+   - Team members can view pending chapters
+
+5. **Team Page** (`/team/[id]`)
+   - Team info and members
+   - Chapters grouped by novel
+   - Pending chapters visible to team members
+
+6. **Admin Panel** (`/admin`)
+   - Pending novels queue
+   - Pending chapters queue
+   - Approve/Reject functionality
+
+7. **Contact Page** (`/contact`)
+   - Email: support@honni.fun
+   - Telegram link
+
+### User Features
+- Google OAuth authentication
+- Bookmarks (reading, planned, completed, dropped)
+- Ratings (1-5 stars)
+- Forum topics and comments
+- Team memberships
 
 ### Reader Settings
 - **Font size:** Small (16px), Medium (18px), Large (22px), Extra Large (26px)
 - **Themes:** Light, Dark, Sepia
-
-### Auth
-- Google OAuth via NextAuth
-- Protected favorites (stored per user)
 
 ---
 
@@ -76,9 +110,13 @@ Novel 1──∞ Chapter
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/chapters/[id]` | Get chapter content by ID |
-| GET | `/api/novels` | List all novels |
-| GET | `/api/novels/[slug]` | Get novel details + chapters |
+| GET | `/api/novels` | List novels with filters |
+| POST | `/api/novels` | Create novel |
+| GET | `/api/chapters` | Create chapter |
+| GET | `/api/moderation` | Get pending counts |
+| PATCH | `/api/moderation/novels/[id]` | Approve/reject novel |
+| PATCH | `/api/moderation/chapters/[id]` | Approve/reject chapter |
+| GET | `/api/forum/topics` | Forum topics |
 
 ---
 
@@ -90,9 +128,9 @@ Novel 1──∞ Chapter
 - Rounded corners (8-12px)
 
 ### Color Schemes
-- **Light:** White background (#ffffff), dark text
-- **Dark:** Dark gray background (#1a1a2e), light text
-- **Sepia:** Warm beige background (#f4ecd8), brown text
+- **Light:** White background, dark text
+- **Dark:** Dark gray background, light text
+- **Sepia:** Warm beige background, brown text
 
 ### Typography
 - Headings: Inter or system sans-serif
@@ -109,25 +147,44 @@ Novel 1──∞ Chapter
 
 ```
 /app
-  /api/auth/[...nextauth]/route.ts
-  /api/chapters/[id]/route.ts
-  /api/novels/route.ts
-  /api/novels/[slug]/route.ts
+  /api
+    /auth/[...nextauth]/route.ts
+    /chapters/route.ts
+    /novels/route.ts
+    /moderation/...
+    /forum/...
+  /admin
+    /page.tsx
+    /novels/page.tsx
+    /chapters/page.tsx
+  /catalog/page.tsx
+  /contact/page.tsx
   /novel/[slug]/page.tsx
   /read/[slug]/[chapter]/page.tsx
+  /team/[id]/page.tsx
+  /bookmarks/page.tsx
+  /forum/...
   /layout.tsx
   /page.tsx
 /components
   /ui (shadcn components)
-  /novel-card.tsx
-  /chapter-list.tsx
-  /reader-settings.tsx
-  /theme-provider.tsx
+  /admin (admin components)
+  novel-card.tsx
+  horizontal-novel-card.tsx
+  chapter-list.tsx
+  chapter-tabs.tsx
+  reader-settings.tsx
+  reader-client.tsx
+  catalog-filters.tsx
+  navbar.tsx
+  footer.tsx
+  theme-provider.tsx
 /lib
-  /prisma.ts
-  /auth.ts
+  prisma.ts
+  auth.ts
+  novels.ts
 /prisma
-  /schema.prisma
+  schema.prisma
 ```
 
 ---
@@ -144,3 +201,18 @@ Novel 1──∞ Chapter
 8. [x] Reader page with markdown rendering
 9. [x] Reader settings (font size, theme)
 10. [x] Chapter navigation API
+11. [x] User roles and moderation system
+12. [x] Team pages and memberships
+13. [x] Catalog page with filters
+14. [x] Contact page
+15. [x] PostgreSQL migration
+
+---
+
+## 9. Future Features (TODO.md)
+
+1. Notifications for new chapters (bookmarks)
+2. Team invite notifications
+3. Edit rejected chapters and resubmit
+4. Edit approved chapters (goes to re-moderation)
+5. Email verification on registration
