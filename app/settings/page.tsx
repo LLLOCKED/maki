@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Users } from 'lucide-react'
+import ProfileSettings from '@/components/settings/profile-settings'
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -31,42 +32,26 @@ export default async function SettingsPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-8 text-3xl font-bold">Settings</h1>
+      <h1 className="mb-8 text-3xl font-bold">Налаштування</h1>
 
       <div className="space-y-6">
-        {/* User Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Your account information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-medium">
-                {session.user.name?.[0] || 'U'}
-              </div>
-              <div>
-                <p className="font-medium">{session.user.name || 'Anonymous'}</p>
-                <p className="text-sm text-muted-foreground">{session.user.email}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Profile Settings */}
+        <ProfileSettings />
 
         {/* Teams */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              My teams
+              Мої команди
             </CardTitle>
             <CardDescription>
-              Teams you are member of
+              Команди, в яких ви бракуєте участь
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {teams.length === 0 ? (
-              <p className="text-muted-foreground">You are not in any team yet</p>
+              <p className="text-muted-foreground">Ви ще не в жодній команді</p>
             ) : (
               <div className="space-y-3">
                 {teams.map(({ team, role }) => (
@@ -77,11 +62,11 @@ export default async function SettingsPage() {
                     <div>
                       <p className="font-medium">{team.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {team._count.members} members · {team._count.chapters} chapters
+                        {team._count.members} учасників · {team._count.chapters} розділів
                       </p>
                     </div>
                     <span className="text-sm text-muted-foreground capitalize">
-                      {role === 'owner' ? 'Owner' : role}
+                      {role === 'owner' ? 'Власник' : role === 'admin' ? 'Адмін' : 'Учасник'}
                     </span>
                   </div>
                 ))}
@@ -91,7 +76,7 @@ export default async function SettingsPage() {
             <Link href="/admin/teams/new">
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
-                Create team
+                Створити команду
               </Button>
             </Link>
           </CardContent>
@@ -100,14 +85,14 @@ export default async function SettingsPage() {
         {/* Admin Links */}
         <Card>
           <CardHeader>
-            <CardTitle>Administration</CardTitle>
-            <CardDescription>Content management</CardDescription>
+            <CardTitle>Адміністрування</CardTitle>
+            <CardDescription>Управління контентом</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Link href="/admin/novels/new">
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Plus className="h-4 w-4" />
-                Add novel
+                Додати новелу
               </Button>
             </Link>
           </CardContent>
