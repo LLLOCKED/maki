@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  honni:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:./dev.db
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-secret-here-generate-with-openssl
+    volumes:
+      - ./prisma:/app/prisma
+      - ./data:/app/data
