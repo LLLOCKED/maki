@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         category: {
           select: { id: true, name: true, slug: true, color: true },
         },
+        votes: true,
         _count: {
           select: { comments: true },
         },

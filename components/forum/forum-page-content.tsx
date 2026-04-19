@@ -27,6 +27,10 @@ interface Category {
   }
 }
 
+interface TopicVote {
+  value: number
+}
+
 interface Topic {
   id: string
   title: string
@@ -43,12 +47,17 @@ interface Topic {
     slug: string
     color: string
   }
+  votes: TopicVote[]
   _count: {
     comments: number
   }
 }
 
-function ForumContent() {
+interface ForumPageContentProps {
+  currentUserId?: string
+}
+
+function ForumContent({ currentUserId }: ForumPageContentProps) {
   const searchParams = useSearchParams()
   const categorySlug = searchParams.get('category')
 
@@ -122,17 +131,17 @@ function ForumContent() {
             <p className="text-muted-foreground">Завантаження...</p>
           </Card>
         ) : (
-          <ForumTopicList topics={topics} />
+          <ForumTopicList topics={topics} currentUserId={currentUserId} />
         )}
       </div>
     </div>
   )
 }
 
-export default function ForumPageContent() {
+export default function ForumPageContent({ currentUserId }: ForumPageContentProps) {
   return (
     <Suspense fallback={<div className="text-muted-foreground">Завантаження...</div>}>
-      <ForumContent />
+      <ForumContent currentUserId={currentUserId} />
     </Suspense>
   )
 }

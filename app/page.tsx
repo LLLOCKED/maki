@@ -2,7 +2,8 @@ import { prisma } from '@/lib/prisma'
 import HorizontalNovelCard from '@/components/horizontal-novel-card'
 import SmallNovelCard from '@/components/small-novel-card'
 import PosterNovelCard from '@/components/poster-novel-card'
-import { BookOpen, Flame, MessageCircle } from 'lucide-react'
+import ForumTopicCard from '@/components/forum/forum-topic-card'
+import { BookOpen, Flame, MessageCircle, TrendingUp } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,8 +41,26 @@ async function getNovels() {
   return novels
 }
 
+async function getForumTopics() {
+  const topics = await prisma.forumTopic.findMany({
+    include: {
+      user: {
+        select: { id: true, name: true, image: true },
+      },
+      category: {
+        select: { id: true, name: true, slug: true, color: true },
+      },
+      votes: true,
+      _count: {
+        select: { comments: true },
+      },
+    },
+  })
+  return topics
+}
+
 export default async function HomePage() {
-  const novels = await getNovels()
+  const [novels, topics] = await Promise.all([getNovels(), getForumTopics()])
 
   // Sort novels - by latest chapter date
   const newNovels = [...novels].sort((a, b) => {
@@ -59,6 +78,20 @@ export default async function HomePage() {
 
   // Latest 10 for horizontal poster scroll
   const latestForPosters = newNovels.slice(0, 10)
+
+  // Top 10 by vote score
+  const topTopics = [...topics]
+    .map(t => ({
+      ...t,
+      voteScore: t.votes.reduce((sum, v) => sum + v.value, 0)
+    }))
+    .sort((a, b) => b.voteScore - a.voteScore)
+    .slice(0, 10)
+
+  // Top 10 most discussed topics
+  const mostDiscussedTopics = [...topics]
+    .sort((a, b) => b._count.comments - a._count.comments)
+    .slice(0, 10)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -173,6 +206,48 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+
+          {/* Forum Topics Section */}
+          {topTopics.length > 0 && (
+            <div className="mt-10">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {/* Popular Topics */}
+                <div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-orange-500" />
+                    <h2 className="text-xl font-semibold">Популярні теми</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {topTopics.map((topic) => (
+                      <ForumTopicCard
+                        key={topic.id}
+                        topic={{
+                          ...topic,
+                          votes: topic.votes,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Most Discussed Topics */}
+                <div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-green-500" />
+                    <h2 className="text-xl font-semibold">Обговорювані теми</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {mostDiscussedTopics.map((topic) => (
+                      <ForumTopicCard
+                        key={topic.id}
+                        topic={topic}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

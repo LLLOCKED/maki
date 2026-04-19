@@ -30,7 +30,7 @@ export default async function ForumPage() {
         )}
       </div>
 
-      <ForumPageContent />
+      <ForumPageContent currentUserId={session?.user?.id} />
     </div>
   )
 }

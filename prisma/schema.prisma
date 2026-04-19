@@ -53,6 +53,7 @@ model User {
   bookmarks     Bookmark[]
   forumTopics   ForumTopic[]
   forumComments ForumComment[]
+  forumTopicVotes ForumTopicVote[]
 }
 
 model Collection {
@@ -138,12 +139,26 @@ model ForumTopic {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   comments    ForumComment[]
+  votes       ForumTopicVote[]
 
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   category ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([categoryId])
   @@index([userId])
+}
+
+model ForumTopicVote {
+  id        String   @id @default(cuid())
+  value     Int      // 1 for upvote, -1 for downvote
+  userId    String
+  topicId   String
+  createdAt DateTime @default(now())
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
 }
 
 model ForumComment {
