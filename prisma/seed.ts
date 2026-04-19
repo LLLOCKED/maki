@@ -7,27 +7,27 @@ async function main() {
   const forumCategories = await Promise.all([
     prisma.forumCategory.upsert({
       where: { slug: 'bugs' },
-      update: {},
+      update: { name: 'Помилки', description: 'Повідомлення про помилки' },
       create: { name: 'Помилки', slug: 'bugs', description: 'Повідомлення про помилки', color: '#ef4444', order: 1 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'discussion' },
-      update: {},
+      update: { name: 'Обговорення', description: 'Загальні питання та обговорення' },
       create: { name: 'Обговорення', slug: 'discussion', description: 'Загальні питання та обговорення', color: '#6366f1', order: 2 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'team-search' },
-      update: {},
+      update: { name: 'Пошук команди', description: 'Пошук команди для перекладу' },
       create: { name: 'Пошук команди', slug: 'team-search', description: 'Пошук команди для перекладу', color: '#22c55e', order: 3 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'suggestions' },
-      update: {},
+      update: { name: 'Пропозиції', description: 'Ваші ідеї та пропозиції' },
       create: { name: 'Пропозиції', slug: 'suggestions', description: 'Ваші ідеї та пропозиції', color: '#f59e0b', order: 4 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'offtopic' },
-      update: {},
+      update: { name: 'Офтоп', description: 'Все інше' },
       create: { name: 'Офтоп', slug: 'offtopic', description: 'Все інше', color: '#6b7280', order: 5 },
     }),
   ])
