@@ -140,9 +140,47 @@ export default async function HomePage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-5">
-            {/* Column 1: New Novels - wide */}
-            <div className="md:col-span-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
+            {/* Left Column: Forum Topics */}
+            <div className="lg:col-span-2">
+              {/* Popular Topics */}
+              <div className="mb-6">
+                <div className="mb-3 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-orange-500" />
+                  <h2 className="text-lg font-semibold">Популярні теми</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {topTopics.map((topic) => (
+                    <ForumTopicCard
+                      key={topic.id}
+                      topic={{
+                        ...topic,
+                        votes: topic.votes,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Most Discussed Topics */}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-green-500" />
+                  <h2 className="text-lg font-semibold">Обговорювані теми</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {mostDiscussedTopics.map((topic) => (
+                    <ForumTopicCard
+                      key={topic.id}
+                      topic={topic}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Middle Column: All Novels */}
+            <div className="lg:col-span-2">
               <div className="mb-4 flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Всі новели</h2>
@@ -160,94 +198,55 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Column 2: Popular */}
-            <div>
-              <div className="mb-4 flex items-center gap-2">
-                <Flame className="h-5 w-5 text-orange-500" />
-                <h2 className="text-xl font-semibold">Популярні</h2>
+            {/* Right Columns: Novel rankings */}
+            <div className="lg:col-span-2 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
+              {/* Popular Novels */}
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-500" />
+                  <h2 className="text-xl font-semibold">Популярні</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {popularNovels.map((novel) => (
+                    <SmallNovelCard
+                      key={novel.id}
+                      novel={{
+                        id: novel.id,
+                        title: novel.title,
+                        slug: novel.slug,
+                        coverUrl: novel.coverUrl,
+                        viewCount: novel.viewCount,
+                      }}
+                      variant="rating"
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                {popularNovels.map((novel) => (
-                  <SmallNovelCard
-                    key={novel.id}
-                    novel={{
-                      id: novel.id,
-                      title: novel.title,
-                      slug: novel.slug,
-                      coverUrl: novel.coverUrl,
-                      viewCount: novel.viewCount,
-                    }}
-                    variant="rating"
-                  />
-                ))}
-              </div>
-            </div>
 
-            {/* Column 3: Discussed */}
-            <div>
-              <div className="mb-4 flex items-center gap-2">
-                <MessageCircle className="h-5 w-5 text-blue-500" />
-                <h2 className="text-xl font-semibold">Обговорювані</h2>
-              </div>
-              <div className="flex flex-col gap-2">
-                {discussedNovels.map((novel) => (
-                  <SmallNovelCard
-                    key={novel.id}
-                    novel={{
-                      id: novel.id,
-                      title: novel.title,
-                      slug: novel.slug,
-                      coverUrl: novel.coverUrl,
-                      _count: novel._count,
-                    }}
-                    variant="discussed"
-                  />
-                ))}
+              {/* Discussed Novels */}
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-blue-500" />
+                  <h2 className="text-xl font-semibold">Обговорювані</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {discussedNovels.map((novel) => (
+                    <SmallNovelCard
+                      key={novel.id}
+                      novel={{
+                        id: novel.id,
+                        title: novel.title,
+                        slug: novel.slug,
+                        coverUrl: novel.coverUrl,
+                        _count: novel._count,
+                      }}
+                      variant="discussed"
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Forum Topics Section */}
-          {topTopics.length > 0 && (
-            <div className="mt-10">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {/* Popular Topics */}
-                <div>
-                  <div className="mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-orange-500" />
-                    <h2 className="text-xl font-semibold">Популярні теми</h2>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {topTopics.map((topic) => (
-                      <ForumTopicCard
-                        key={topic.id}
-                        topic={{
-                          ...topic,
-                          votes: topic.votes,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Most Discussed Topics */}
-                <div>
-                  <div className="mb-4 flex items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-green-500" />
-                    <h2 className="text-xl font-semibold">Обговорювані теми</h2>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {mostDiscussedTopics.map((topic) => (
-                      <ForumTopicCard
-                        key={topic.id}
-                        topic={topic}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
