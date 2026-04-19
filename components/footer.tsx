@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex flex-col items-center gap-2 md:items-start">
-            <span className="text-sm text-muted-foreground">© 2026 maki</span>
+            <span className="text-sm text-muted-foreground">© 2026 honni</span>
           </div>
 
           <div className="flex items-center gap-6">

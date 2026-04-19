@@ -22,7 +22,7 @@ export default function Navbar({ session }: NavbarProps) {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold">maki</span>
+            <span className="text-xl font-bold">honni</span>
           </Link>
 
           {/* Desktop Navigation */}

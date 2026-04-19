@@ -144,7 +144,7 @@ export default async function HomePage() {
       <div className="mb-8 flex items-center gap-3">
         <BookOpen className="h-8 w-8 text-primary" />
         <div>
-          <h1 className="text-3xl font-bold">maki</h1>
+          <h1 className="text-3xl font-bold">honni</h1>
           <p className="text-muted-foreground">
             {totalNovels} творів у бібліотеці
           </p>

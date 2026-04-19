@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Правовласникам',
-  description: 'Інформація для правовласників щодо авторських прав на контент сайту maki',
+  description: 'Інформація для правовласників щодо авторських прав на контент сайту honni',
 }
 
 export default function PrivacyPage() {
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         </ul>
 
         <p className="font-medium">
-          Адреса нашої електронної пошти: support@maki.website
+          Адреса нашої електронної пошти: support@honni.website
         </p>
 
         <p>
@@ -38,7 +38,7 @@ export default function PrivacyPage() {
 
         <h2 className="text-xl font-semibold">Про сервіс</h2>
         <p>
-          maki — це платформа для любителів ранобє та манги, де користувачі можуть
+          honni — це платформа для любителів ранобє та манги, де користувачі можуть
           читати та ділитися перекладами з іншими членами спільноти.
         </p>
 
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
         <p>
           Якщо Ви вважаєте, що переклад манги на нашому сайті порушує Ваші авторські права,
           Ви можете написати повідомлення про порушення прав та відправити його на адресу
-          support@maki.website. Ми, у свою чергу, зобов&apos;язуємося здійснити блокування
+          support@honni.website. Ми, у свою чергу, зобов&apos;язуємося здійснити блокування
           переліченого в повідомленні матеріалу.
         </p>
       </div>

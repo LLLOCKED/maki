@@ -11,24 +11,24 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'maki',
-    template: '%s | maki',
+    default: 'honni',
+    template: '%s | honni',
   },
   description: 'Платформа для читання ранобє, новел та книг онлайн. Читайте улюблені історії безкоштовно.',
   keywords: ['ranobe', 'light novel', 'новели', 'ранобє', 'книги', 'читання', 'онлайн'],
-  authors: [{ name: 'maki' }],
-  creator: 'maki',
+  authors: [{ name: 'honni' }],
+  creator: 'honni',
   openGraph: {
     type: 'website',
     locale: 'uk_UA',
-    url: 'https://ranobehub.com',
-    siteName: 'maki',
-    title: 'maki',
+    url: 'https://honni.com',
+    siteName: 'honni',
+    title: 'honni',
     description: 'Платформа для читання ранобє, новел та книг онлайн',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'maki',
+    title: 'honni',
     description: 'Платформа для читання ранобє, новел та книг онлайн',
   },
   robots: {
