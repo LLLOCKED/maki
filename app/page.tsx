@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/prisma'
-import HorizontalNovelCard from '@/components/horizontal-novel-card'
 import SmallNovelCard from '@/components/small-novel-card'
 import PosterNovelCard from '@/components/poster-novel-card'
 import ForumTopicCard from '@/components/forum/forum-topic-card'
+import NovelsList from '@/components/novels-list'
 import { BookOpen, Flame, MessageCircle, TrendingUp } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-async function getNovels() {
+async function getNovels(page: number = 0, limit: number = 8) {
+  const skip = page * limit
+
   const novels = await prisma.novel.findMany({
     include: {
       genres: {
@@ -37,8 +39,44 @@ async function getNovels() {
         },
       },
     },
+    skip,
+    take: limit,
   })
+
   return novels
+}
+
+async function getAllNovelsForCounts() {
+  return prisma.novel.findMany({
+    include: {
+      genres: {
+        include: {
+          genre: true,
+        },
+      },
+      chapters: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          title: true,
+          number: true,
+          createdAt: true,
+          teamId: true,
+        },
+      },
+      authors: {
+        include: {
+          author: true,
+        },
+      },
+      _count: {
+        select: {
+          comments: true,
+        },
+      },
+    },
+  })
 }
 
 async function getForumTopics() {
@@ -60,24 +98,32 @@ async function getForumTopics() {
 }
 
 export default async function HomePage() {
-  const [novels, topics] = await Promise.all([getNovels(), getForumTopics()])
+  const [allNovels, topics] = await Promise.all([
+    getAllNovelsForCounts(),
+    getForumTopics(),
+  ])
 
-  // Sort novels - by latest chapter date
-  const newNovels = [...novels].sort((a, b) => {
-    const aDate = a.chapters[0]?.createdAt || a.createdAt
-    const bDate = b.chapters[0]?.createdAt || b.createdAt
-    return new Date(bDate).getTime() - new Date(aDate).getTime()
-  })
-  const popularNovels = [...novels].sort(
+  // For initial load, get first 8 novels
+  const initialNovels = await getNovels(0, 8)
+  const totalNovels = allNovels.length
+
+  // Sort for rankings
+  const popularNovels = [...allNovels].sort(
     (a, b) => b.viewCount - a.viewCount
   ).slice(0, 10)
 
-  const discussedNovels = [...novels].sort(
+  const discussedNovels = [...allNovels].sort(
     (a, b) => b._count.comments - a._count.comments
   ).slice(0, 10)
 
   // Latest 10 for horizontal poster scroll
-  const latestForPosters = newNovels.slice(0, 10)
+  const latestForPosters = [...allNovels]
+    .sort((a, b) => {
+      const aDate = a.chapters[0]?.createdAt || a.createdAt
+      const bDate = b.chapters[0]?.createdAt || b.createdAt
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+    .slice(0, 10)
 
   // Top 10 by vote score
   const topTopics = [...topics]
@@ -100,12 +146,12 @@ export default async function HomePage() {
         <div>
           <h1 className="text-3xl font-bold">maki</h1>
           <p className="text-muted-foreground">
-            {novels.length} творів у бібліотеці
+            {totalNovels} творів у бібліотеці
           </p>
         </div>
       </div>
 
-      {novels.length === 0 ? (
+      {totalNovels === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <span className="text-6xl">📚</span>
           <h2 className="mt-4 text-xl font-semibold">Бібліотека пуста</h2>
@@ -190,23 +236,9 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Middle Column: All Novels */}
+            {/* Middle Column: All Novels with infinite scroll */}
             <div className="lg:col-span-3">
-              <div className="mb-4 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Всі новели</h2>
-              </div>
-              <div className="flex flex-col gap-3">
-                {newNovels.map((novel) => (
-                  <HorizontalNovelCard
-                    key={novel.id}
-                    novel={{
-                      ...novel,
-                      genres: novel.genres,
-                    }}
-                  />
-                ))}
-              </div>
+              <NovelsList initialNovels={initialNovels as any} totalCount={totalNovels} />
             </div>
 
             {/* Right Column: Forum Topics */}

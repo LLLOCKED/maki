@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '0')
+    const limit = parseInt(searchParams.get('limit') || '8')
+    const skip = page * limit
+
     const novels = await prisma.novel.findMany({
       include: {
         genres: {
@@ -11,23 +16,44 @@ export async function GET() {
             genre: true,
           },
         },
-        tags: {
+        chapters: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            number: true,
+            createdAt: true,
+            teamId: true,
+          },
+        },
+        authors: {
           include: {
-            tag: true,
+            author: true,
           },
         },
         _count: {
           select: {
-            chapters: true,
+            comments: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        chapters: {
+          _count: 'desc',
+        },
       },
+      skip,
+      take: limit,
     })
 
-    return NextResponse.json(novels)
+    const total = await prisma.novel.count()
+
+    return NextResponse.json({
+      novels,
+      hasMore: skip + novels.length < total,
+      total,
+    })
   } catch (error) {
     console.error('Error fetching novels:', error)
     return NextResponse.json(
