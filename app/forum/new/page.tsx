@@ -8,12 +8,20 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSession } from 'next-auth/react'
+import NovelSelector from '@/components/forum/novel-selector'
 
 interface Category {
   id: string
   name: string
   slug: string
   color: string
+}
+
+interface Novel {
+  id: string
+  title: string
+  slug: string
+  coverUrl: string | null
 }
 
 export default function NewTopicPage() {
@@ -23,6 +31,7 @@ export default function NewTopicPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -48,7 +57,12 @@ export default function NewTopicPage() {
       const res = await fetch('/api/forum/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, categoryId }),
+        body: JSON.stringify({
+          title,
+          content,
+          categoryId,
+          novelId: selectedNovel?.id || null,
+        }),
       })
 
       if (!res.ok) {
@@ -130,6 +144,8 @@ export default function NewTopicPage() {
                 ))}
               </select>
             </div>
+
+            <NovelSelector onSelect={setSelectedNovel} selectedNovel={selectedNovel} />
 
             <div>
               <label className="mb-1 block text-sm font-medium">Заголовок</label>

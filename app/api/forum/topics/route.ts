@@ -20,6 +20,9 @@ export async function GET(request: Request) {
         category: {
           select: { id: true, name: true, slug: true, color: true },
         },
+        novel: {
+          select: { id: true, title: true, slug: true },
+        },
         votes: true,
         _count: {
           select: { comments: true },
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { title, content, categoryId } = await request.json()
+    const { title, content, categoryId, novelId } = await request.json()
 
     if (!title || !content || !categoryId) {
       return NextResponse.json(
@@ -58,6 +61,7 @@ export async function POST(request: Request) {
         content,
         userId: session.user.id,
         categoryId,
+        novelId: novelId || null,
       },
       include: {
         user: {
@@ -65,6 +69,9 @@ export async function POST(request: Request) {
         },
         category: {
           select: { id: true, name: true, slug: true, color: true },
+        },
+        novel: {
+          select: { id: true, title: true, slug: true },
         },
       },
     })

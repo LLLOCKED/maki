@@ -5,49 +5,36 @@ import { auth } from '@/lib/auth'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '0')
     const limit = parseInt(searchParams.get('limit') || '8')
     const skip = page * limit
 
+    const where = search
+      ? {
+          OR: [
+            { title: { contains: search } },
+            { originalName: { contains: search } },
+          ],
+        }
+      : {}
+
     const novels = await prisma.novel.findMany({
-      include: {
-        genres: {
-          include: {
-            genre: true,
-          },
-        },
-        chapters: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-            id: true,
-            title: true,
-            number: true,
-            createdAt: true,
-            teamId: true,
-          },
-        },
-        authors: {
-          include: {
-            author: true,
-          },
-        },
-        _count: {
-          select: {
-            comments: true,
-          },
-        },
+      where,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        coverUrl: true,
       },
       orderBy: {
-        chapters: {
-          _count: 'desc',
-        },
+        title: 'asc',
       },
       skip,
       take: limit,
     })
 
-    const total = await prisma.novel.count()
+    const total = await prisma.novel.count({ where })
 
     return NextResponse.json({
       novels,

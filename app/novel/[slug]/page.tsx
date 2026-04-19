@@ -91,6 +91,21 @@ async function getNovel(slug: string) {
         },
       },
       ratings: true,
+      forumTopics: {
+        where: { novelId: { not: null } },
+        include: {
+          user: {
+            select: { id: true, name: true },
+          },
+          category: {
+            select: { id: true, name: true, slug: true, color: true },
+          },
+          _count: {
+            select: { comments: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   })
   return novel
@@ -336,6 +351,39 @@ export default async function NovelPage({ params }: NovelPageProps) {
 
           {/* Comments */}
           <CommentSection novelId={novel.id} />
+
+          {/* Forum Topics */}
+          {novel.forumTopics.length > 0 && (
+            <div className="mt-8">
+              <h2 className="mb-4 text-xl font-semibold">Обговорення</h2>
+              <div className="space-y-2">
+                {novel.forumTopics.map((topic) => (
+                  <Link key={topic.id} href={`/forum/${topic.id}`}>
+                    <Card className="p-4 transition-colors hover:bg-muted">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge
+                          style={{
+                            backgroundColor: topic.category.color + '20',
+                            color: topic.category.color,
+                          }}
+                        >
+                          {topic.category.name}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(topic.createdAt).toLocaleDateString('uk-UA')}
+                        </span>
+                      </div>
+                      <h3 className="font-medium hover:text-primary">{topic.title}</h3>
+                      <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>{topic.user.name}</span>
+                        <span>{topic._count.comments} коментарів</span>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -88,6 +88,9 @@ async function getForumTopics() {
       category: {
         select: { id: true, name: true, slug: true, color: true },
       },
+      novel: {
+        select: { id: true, title: true, slug: true },
+      },
       votes: true,
       _count: {
         select: { comments: true },
@@ -253,10 +256,7 @@ export default async function HomePage() {
                   {topTopics.map((topic) => (
                     <ForumTopicCard
                       key={topic.id}
-                      topic={{
-                        ...topic,
-                        votes: topic.votes,
-                      }}
+                      topic={topic as any}
                     />
                   ))}
                 </div>
@@ -272,7 +272,7 @@ export default async function HomePage() {
                   {mostDiscussedTopics.map((topic) => (
                     <ForumTopicCard
                       key={topic.id}
-                      topic={topic}
+                      topic={topic as any}
                     />
                   ))}
                 </div>

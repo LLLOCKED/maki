@@ -28,6 +28,11 @@ interface Topic {
     slug: string
     color: string
   }
+  novel: {
+    id: string
+    title: string
+    slug: string
+  } | null
   votes: TopicVote[]
   _count: {
     comments: number
@@ -141,7 +146,7 @@ export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardP
           {/* Topic content */}
           <div className="flex-1">
             <Link href={`/forum/${topic.id}`} className="block">
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <Badge
                   variant="secondary"
                   style={{
@@ -151,6 +156,13 @@ export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardP
                 >
                   {topic.category.name}
                 </Badge>
+                {topic.novel && (
+                  <Link href={`/novel/${topic.novel.slug}`} onClick={e => e.stopPropagation}>
+                    <Badge variant="outline" className="text-xs hover:bg-secondary">
+                      {topic.novel.title}
+                    </Badge>
+                  </Link>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {formatDate(topic.createdAt)}
                 </span>

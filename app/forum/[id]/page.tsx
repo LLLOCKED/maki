@@ -31,6 +31,9 @@ async function getTopic(id: string) {
       category: {
         select: { id: true, name: true, slug: true, color: true },
       },
+      novel: {
+        select: { id: true, title: true, slug: true },
+      },
       votes: true,
       comments: {
         where: { parentId: null },
@@ -103,7 +106,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
       {/* Topic Header */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
             <Badge
               style={{
                 backgroundColor: topic.category.color + '20',
@@ -112,6 +115,13 @@ export default async function TopicPage({ params }: TopicPageProps) {
             >
               {topic.category.name}
             </Badge>
+            {topic.novel && (
+              <Link href={`/novel/${topic.novel.slug}`}>
+                <Badge variant="secondary" className="hover:bg-secondary/80">
+                  {topic.novel.title}
+                </Badge>
+              </Link>
+            )}
             <span className="text-sm text-muted-foreground">
               {formatDate(topic.createdAt)}
             </span>

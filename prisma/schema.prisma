@@ -136,16 +136,18 @@ model ForumTopic {
   content     String
   userId      String
   categoryId  String
+  novelId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   comments    ForumComment[]
   votes       ForumTopicVote[]
-
+  novel      Novel?      @relation(fields: [novelId], references: [id], onDelete: Cascade)
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   category ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([categoryId])
   @@index([userId])
+  @@index([novelId])
 }
 
 model ForumTopicVote {
@@ -240,6 +242,7 @@ model Novel {
   tags         NovelTag[]
   bookmarks    Bookmark[]
   inCollections Collection[]  @relation("CollectionNovels")
+  forumTopics   ForumTopic[]
 
   @@index([slug])
 }

@@ -23,6 +23,11 @@ interface Topic {
     slug: string
     color: string
   }
+  novel: {
+    id: string
+    title: string
+    slug: string
+  } | null
   votes: TopicVote[]
   _count: {
     comments: number
