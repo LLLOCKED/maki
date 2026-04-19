@@ -14,7 +14,8 @@ interface NavbarProps {
 
 export default function Navbar({ session }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const sessionUser = session as { user?: { id?: string; name?: string | null; image?: string | null } | null } | null
+  const sessionUser = session as { user?: { id?: string; name?: string | null; image?: string | null; role?: string } | null } | null
+  const isAdmin = sessionUser?.user?.role && ['OWNER', 'ADMIN', 'MODERATOR'].includes(sessionUser.user.role)
 
   return (
     <>
@@ -38,6 +39,11 @@ export default function Navbar({ session }: NavbarProps) {
             <Link href="/forum" className="text-sm font-medium hover:text-primary">
               Форум
             </Link>
+            {isAdmin && (
+              <Link href="/admin" className="text-sm font-medium hover:text-primary text-primary">
+                Адмінка
+              </Link>
+            )}
             <SearchButton />
           </nav>
 
@@ -102,6 +108,15 @@ export default function Navbar({ session }: NavbarProps) {
                 <MessageSquare className="h-4 w-4" />
                 Форум
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 text-sm font-medium text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Адмінка
+                </Link>
+              )}
               <div className="flex items-center gap-4 border-t pt-4">
                 {sessionUser?.user ? (
                   <>

@@ -48,9 +48,13 @@ const translationStatusLabels: Record<string, string> = {
   HIATUS: 'На паузі',
 }
 
-async function getNovel(slug: string) {
+async function getNovel(slug: string, isAdmin: boolean = false) {
+  const where = isAdmin
+    ? { slug }
+    : { slug, moderationStatus: 'APPROVED' }
+
   const novel = await prisma.novel.findUnique({
-    where: { slug },
+    where,
     include: {
       genres: {
         include: {
@@ -82,6 +86,7 @@ async function getNovel(slug: string) {
           number: true,
           createdAt: true,
           teamId: true,
+          moderationStatus: true,
           team: {
             select: {
               id: true,
@@ -122,7 +127,10 @@ export async function generateMetadata({ params }: NovelPageProps) {
 
 export default async function NovelPage({ params }: NovelPageProps) {
   const session = await auth()
-  const novel = await getNovel(params.slug)
+  const sessionWithRole = session as { user?: { id?: string; role?: string } } | null
+  const userRole = sessionWithRole?.user?.role
+  const isAdmin = ['OWNER', 'ADMIN', 'MODERATOR'].includes(userRole || '')
+  const novel = await getNovel(params.slug, isAdmin)
 
   if (!novel) {
     notFound()
@@ -347,7 +355,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
               </Link>
             )}
           </div>
-          <ChapterTabs novelSlug={novel.slug} chapters={novel.chapters} />
+          <ChapterTabs novelSlug={novel.slug} chapters={novel.chapters as any} isAdmin={isAdmin} />
 
           {/* Comments */}
           <CommentSection novelId={novel.id} />

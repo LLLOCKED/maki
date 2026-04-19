@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       data: { averageRating: avg._avg.value || 0 },
     })
 
-    return NextResponse.json(rating)
+    return NextResponse.json({ rating, newAverage: avg._avg.value || 0 })
   } catch (error) {
     console.error('Rating error:', error)
     return NextResponse.json({ error: 'Failed to rate' }, { status: 500 })

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import ReaderClient from '@/components/reader-client'
@@ -13,9 +14,10 @@ interface ReaderPageProps {
   searchParams: { chapter?: string }
 }
 
-async function getChapter(slug: string, chapterNumber: number, teamId?: string | null) {
+async function getChapter(slug: string, chapterNumber: number, teamId?: string | null, isAdmin: boolean = false, isTeamMember: boolean = false) {
+  const novelWhere = isAdmin ? { slug } : { slug, moderationStatus: 'APPROVED' }
   const novel = await prisma.novel.findUnique({
-    where: { slug },
+    where: novelWhere,
     include: {
       chapters: {
         orderBy: { number: 'asc' },
@@ -26,12 +28,21 @@ async function getChapter(slug: string, chapterNumber: number, teamId?: string |
 
   if (!novel) return null
 
+  // Team members can see PENDING chapters from their team
+  const chapterWhere = isAdmin
+    ? { novelId: novel.id, number: chapterNumber }
+    : isTeamMember
+      ? { novelId: novel.id, number: chapterNumber, teamId: teamId || undefined }
+      : { novelId: novel.id, number: chapterNumber, moderationStatus: 'APPROVED' }
+
   const chapters = await prisma.chapter.findMany({
-    where: {
-      novelId: novel.id,
-      number: chapterNumber,
-    },
-    include: {
+    where: chapterWhere,
+    select: {
+      id: true,
+      title: true,
+      number: true,
+      content: true,
+      teamId: true,
       team: {
         select: { id: true, name: true },
       },
@@ -41,13 +52,20 @@ async function getChapter(slug: string, chapterNumber: number, teamId?: string |
   // Get all chapters from the same team for navigation
   let teamChapters: typeof chapters = []
   if (teamId) {
+    const teamChapterWhere = isAdmin
+      ? { novelId: novel.id, teamId: teamId }
+      : isTeamMember
+        ? { novelId: novel.id, teamId: teamId }
+        : { novelId: novel.id, teamId: teamId, moderationStatus: 'APPROVED' }
     teamChapters = await prisma.chapter.findMany({
-      where: {
-        novelId: novel.id,
-        teamId: teamId,
-      },
+      where: teamChapterWhere,
       orderBy: { number: 'asc' },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        number: true,
+        content: true,
+        teamId: true,
         team: {
           select: { id: true, name: true },
         },
@@ -55,7 +73,31 @@ async function getChapter(slug: string, chapterNumber: number, teamId?: string |
     })
   }
 
-  return { chapters, novel, chapterNumbers: novel.chapters, teamChapters }
+  // Get all translations of this chapter (all teams) for the translation selector
+  const allTranslationsWhere = isAdmin
+    ? { novelId: novel.id, number: chapterNumber }
+    : { novelId: novel.id, number: chapterNumber, moderationStatus: 'APPROVED' }
+  const allTranslations = await prisma.chapter.findMany({
+    where: allTranslationsWhere,
+    select: {
+      id: true,
+      title: true,
+      number: true,
+      content: true,
+      teamId: true,
+      team: {
+        select: { id: true, name: true },
+      },
+    },
+  })
+
+  return {
+    chapters,
+    novel,
+    chapterNumbers: novel.chapters,
+    teamChapters: teamChapters.length > 0 ? teamChapters : chapters,
+    allTranslations,
+  }
 }
 
 export async function generateMetadata({ params }: ReaderPageProps) {
@@ -70,6 +112,10 @@ export async function generateMetadata({ params }: ReaderPageProps) {
 }
 
 export default async function ReaderPage({ params, searchParams }: ReaderPageProps) {
+  const session = await auth()
+  const sessionWithRole = session as { user?: { id?: string; role?: string } } | null
+  const userRole = sessionWithRole?.user?.role
+  const isAdmin = ['OWNER', 'ADMIN', 'MODERATOR'].includes(userRole || '')
   const chapterNum = parseInt(params.chapter)
 
   // If a specific chapter ID is requested, get the team for that chapter first
@@ -82,13 +128,27 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
     teamId = directChapter?.teamId
   }
 
-  const data = await getChapter(params.slug, chapterNum, teamId)
+  // Check if user is a member of the team (to view PENDING chapters)
+  let isTeamMember = false
+  if (teamId && session?.user?.id) {
+    const membership = await prisma.teamMembership.findUnique({
+      where: {
+        userId_teamId: {
+          userId: session.user.id,
+          teamId: teamId,
+        },
+      },
+    })
+    isTeamMember = !!membership
+  }
+
+  const data = await getChapter(params.slug, chapterNum, teamId, isAdmin, isTeamMember)
 
   if (!data || data.chapters.length === 0) {
     notFound()
   }
 
-  const { chapters, novel, chapterNumbers, teamChapters } = data
+  const { chapters, novel, chapterNumbers, teamChapters, allTranslations } = data
 
   // Find current position in team's chapters
   const selectedChapterId = searchParams.chapter && chapters.find(c => c.id === searchParams.chapter)
@@ -131,22 +191,24 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
         </div>
       </header>
 
-      {/* Reader */}
       <ReaderClient
-        chapters={chapters}
-        teamChapters={teamChapters}
-        initialChapterId={selectedChapterId}
-        novelSlug={novel.slug}
-        chapterNumber={chapterNum}
-        currentChapter={teamChapterIndex + 1}
-        totalChapters={teamChapters.length}
-        hasPrevChapter={hasPrevChapter}
-        hasNextChapter={hasNextChapter}
-        prevChapterId={prevChapter?.id || null}
-        prevChapterNumber={prevChapter?.number || null}
-        nextChapterId={nextChapter?.id || null}
-        nextChapterNumber={nextChapter?.number || null}
-        overallProgress={`${currentOverallIndex + 1}/${totalOverall}`}
+        {...{
+          chapters: teamChapters,
+          teamChapters: teamChapters,
+          allTranslations,
+          initialChapterId: selectedChapterId,
+          novelSlug: novel.slug,
+          chapterNumber: chapterNum,
+          currentChapter: currentOverallIndex,
+          totalChapters: totalOverall,
+          hasPrevChapter,
+          hasNextChapter,
+          prevChapterId: prevChapter?.id || null,
+          prevChapterNumber: prevChapter?.number || null,
+          nextChapterId: nextChapter?.id || null,
+          nextChapterNumber: nextChapter?.number || null,
+          overallProgress: `${currentOverallIndex + 1} з ${totalOverall}`,
+        } as any}
       />
     </div>
   )

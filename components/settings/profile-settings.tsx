@@ -1,22 +1,58 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { User, Upload, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { User, Upload, Loader2, X } from 'lucide-react'
 
 export default function ProfileSettings() {
   const { data: session, update } = useSession()
   const router = useRouter()
   const [name, setName] = useState(session?.user?.name || '')
-  const [image, setImage] = useState(session?.user?.image || '')
+  const [avatarUrl, setAvatarUrl] = useState(session?.user?.image || '')
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Upload failed')
+        return
+      }
+
+      const data = await res.json()
+      setAvatarUrl(data.url)
+    } catch (err) {
+      setError('Upload failed')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +63,7 @@ export default function ProfileSettings() {
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, image }),
+        body: JSON.stringify({ name, image: avatarUrl }),
       })
 
       if (!res.ok) {
@@ -43,10 +79,6 @@ export default function ProfileSettings() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleImageError = () => {
-    setImage('')
   }
 
   return (
@@ -66,15 +98,14 @@ export default function ProfileSettings() {
             </div>
           )}
 
-          {/* Avatar preview */}
+          {/* Avatar preview and upload */}
           <div className="flex items-center gap-4">
             <div className="relative h-20 w-20 overflow-hidden rounded-full bg-muted">
-              {image ? (
+              {avatarUrl ? (
                 <img
-                  src={image}
+                  src={avatarUrl}
                   alt="Avatar"
                   className="h-full w-full object-cover"
-                  onError={handleImageError}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">
@@ -82,16 +113,43 @@ export default function ProfileSettings() {
                 </div>
               )}
             </div>
-            <div className="flex-1">
-              <Label htmlFor="image">URL аватара</Label>
-              <Input
-                id="image"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                placeholder="https://..."
+            <div className="flex-1 space-y-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Вставте URL зображення для аватара
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  Завантажити
+                </Button>
+                {avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRemoveAvatar}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Видалити
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                JPG, PNG, GIF або WebP до 2MB
               </p>
             </div>
           </div>

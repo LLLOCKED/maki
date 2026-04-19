@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { BookOpen, ArrowUpDown, ArrowUp, ArrowDown, Users } from 'lucide-react'
+import { BookOpen, ArrowUpDown, ArrowUp, ArrowDown, Users, Clock } from 'lucide-react'
 
 interface Chapter {
   id: string
@@ -18,6 +18,7 @@ interface Chapter {
   number: number
   createdAt: Date
   teamId: string | null
+  moderationStatus?: string
   team?: {
     id: string
     name: string
@@ -85,7 +86,14 @@ export default function ChapterList({ novelSlug, chapters }: ChapterListProps) {
                   <span className="text-sm text-muted-foreground">
                     Розділ {chapter.number}
                   </span>
-                  <h3 className="font-medium">{chapter.title}</h3>
+                  <h3 className="font-medium">
+                    {chapter.title}
+                    {chapter.moderationStatus === 'PENDING' && (
+                      <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
+                        На модерації
+                      </span>
+                    )}
+                  </h3>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{formatDate(chapter.createdAt)}</span>
                     {chapter.team && (

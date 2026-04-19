@@ -12,20 +12,37 @@ export async function GET(request: Request) {
 
     const where = search
       ? {
+          moderationStatus: 'APPROVED',
           OR: [
             { title: { contains: search } },
             { originalName: { contains: search } },
           ],
         }
-      : {}
+      : { moderationStatus: 'APPROVED' }
 
     const novels = await prisma.novel.findMany({
       where,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        coverUrl: true,
+      include: {
+        genres: {
+          include: { genre: true },
+        },
+        authors: {
+          include: { author: true },
+        },
+        chapters: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            number: true,
+            createdAt: true,
+            teamId: true,
+          },
+        },
+        _count: {
+          select: { comments: true },
+        },
       },
       orderBy: {
         title: 'asc',
@@ -95,6 +112,7 @@ export async function POST(request: Request) {
         type: type || 'ORIGINAL',
         status: status || 'ONGOING',
         translationStatus: translationStatus || 'TRANSLATING',
+        moderationStatus: 'PENDING',
         releaseYear: releaseYear ? parseInt(releaseYear) : null,
         genres: genreIds?.length
           ? {

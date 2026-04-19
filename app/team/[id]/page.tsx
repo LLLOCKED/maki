@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Users, BookOpen, Plus } from 'lucide-react'
+import { Users, BookOpen, Plus, Clock } from 'lucide-react'
 import JoinTeamButton from '@/components/join-team-button'
 import AddTeamMember from '@/components/add-team-member'
 
@@ -50,9 +50,12 @@ export default async function TeamPage({ params }: TeamPageProps) {
     notFound()
   }
 
-  const membership = session?.user?.id
-    ? team.members.find((m) => m.userId === session?.user?.id)
-    : null
+  const isMember = team.members.some((m) => m.userId === session?.user?.id)
+
+  // Filter chapters based on membership - members see all, non-members see only APPROVED
+  const visibleChapters = isMember
+    ? team.chapters
+    : team.chapters.filter(c => c.moderationStatus === 'APPROVED')
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -69,11 +72,11 @@ export default async function TeamPage({ params }: TeamPageProps) {
           </div>
         </div>
 
-        {session && !membership && (
+        {session && !isMember && (
           <JoinTeamButton teamId={team.id} />
         )}
 
-        {membership && (
+        {isMember && (
           <Badge variant="secondary">Вы в команде</Badge>
         )}
       </div>
@@ -96,13 +99,13 @@ export default async function TeamPage({ params }: TeamPageProps) {
             <Users className="h-5 w-5" />
             Участники
           </h2>
-          {session?.user?.id && membership ? (
+          {session?.user?.id && isMember ? (
             <AddTeamMember
               teamId={team.id}
               currentUserId={session.user.id}
               members={team.members}
-              isOwner={membership.role === 'owner'}
-              isAdmin={membership.role === 'admin'}
+              isOwner={team.members.find(m => m.userId === session?.user?.id)?.role === 'owner'}
+              isAdmin={team.members.find(m => m.userId === session?.user?.id)?.role === 'admin'}
             />
           ) : (
             <div className="space-y-2">
@@ -139,23 +142,23 @@ export default async function TeamPage({ params }: TeamPageProps) {
         <div className="md:col-span-2">
           <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
             <BookOpen className="h-5 w-5" />
-            Переводы ({team.chapters.length})
+            Переводы ({visibleChapters.length})
           </h2>
 
-          {team.chapters.length === 0 ? (
+          {visibleChapters.length === 0 ? (
             <p className="text-muted-foreground">Пока нет переводов</p>
           ) : (
             <div className="space-y-2">
               {/* Group chapters by novel */}
               {Object.values(
-                team.chapters.reduce((acc, chapter) => {
+                visibleChapters.reduce((acc, chapter) => {
                   const novelId = chapter.novelId
                   if (!acc[novelId]) {
                     acc[novelId] = { novel: chapter.novel, chapters: [] }
                   }
                   acc[novelId].chapters.push(chapter)
                   return acc
-                }, {} as Record<string, { novel: typeof team.chapters[0]['novel'], chapters: typeof team.chapters }>)
+                }, {} as Record<string, { novel: typeof visibleChapters[0]['novel'], chapters: typeof visibleChapters }>)
               ).map(({ novel, chapters }) => (
                 <Card key={novel.id} className="p-4">
                   <Link href={`/novel/${novel.slug}`} className="flex gap-4">
@@ -175,19 +178,36 @@ export default async function TeamPage({ params }: TeamPageProps) {
                     <div className="flex-1">
                       <h3 className="font-medium">{novel.title}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {chapters.length} глав
+                        {chapters.filter(c => c.moderationStatus === 'APPROVED').length} из {chapters.length} глав
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {chapters.slice(0, 5).map((ch) => (
-                          <Badge key={ch.id} variant="outline" className="text-xs">
-                            {ch.number}
-                          </Badge>
-                        ))}
-                        {chapters.length > 5 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{chapters.length - 5}
-                          </Badge>
-                        )}
+                        {chapters.map((ch) => {
+                          const isPending = ch.moderationStatus === 'PENDING'
+                          const chapterUrl = `/read/${novel.slug}/${ch.number}?chapter=${ch.id}`
+
+                          return isPending && !isMember ? (
+                            <Badge
+                              key={ch.id}
+                              variant="secondary"
+                              className="text-xs bg-yellow-100 text-yellow-800"
+                            >
+                              {ch.number}
+                              <span className="ml-1">На модерації</span>
+                            </Badge>
+                          ) : (
+                            <Link key={ch.id} href={chapterUrl}>
+                              <Badge
+                                variant={isPending ? 'secondary' : 'outline'}
+                                className={`text-xs cursor-pointer hover:bg-muted ${isPending ? 'bg-yellow-100 text-yellow-800' : ''}`}
+                              >
+                                {ch.number}
+                                {isPending && (
+                                  <span className="ml-1">На модерації</span>
+                                )}
+                              </Badge>
+                            </Link>
+                          )
+                        })}
                       </div>
                     </div>
                   </Link>

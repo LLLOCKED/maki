@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         content: content || '',
         novelId,
         teamId: teamId || null,
+        moderationStatus: 'PENDING',
       },
       include: {
         novel: {

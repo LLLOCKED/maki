@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users } from 'lucide-react'
+import { Users, Clock } from 'lucide-react'
 import ChapterList from './chapter-list'
 
 interface Chapter {
@@ -10,6 +10,7 @@ interface Chapter {
   number: number
   createdAt: Date
   teamId: string | null
+  moderationStatus: string
   team: {
     id: string
     name: string
@@ -19,11 +20,18 @@ interface Chapter {
 interface ChapterTabsProps {
   novelSlug: string
   chapters: Chapter[]
+  isAdmin?: boolean
 }
 
-export default function ChapterTabs({ novelSlug, chapters }: ChapterTabsProps) {
+export default function ChapterTabs({ novelSlug, chapters, isAdmin = false }: ChapterTabsProps) {
+  // Filter chapters: show all for admins, only APPROVED for non-admins
+  const visibleChapters = isAdmin
+    ? chapters
+    : chapters.filter(c => c.moderationStatus === 'APPROVED')
+
+  // Group by team
   const teamMap = new Map<string | null, Chapter[]>()
-  for (const chapter of chapters) {
+  for (const chapter of visibleChapters) {
     const key = chapter.teamId
     if (!teamMap.has(key)) {
       teamMap.set(key, [])
@@ -34,8 +42,22 @@ export default function ChapterTabs({ novelSlug, chapters }: ChapterTabsProps) {
   const entries = Array.from(teamMap.entries())
   const [activeTab, setActiveTab] = useState(entries[0]?.[0] || null)
 
+  // Count pending chapters for admin indicator
+  const pendingCount = chapters.filter(c => c.moderationStatus === 'PENDING').length
+
   return (
     <div>
+      {/* Admin notice */}
+      {isAdmin && pendingCount > 0 && (
+        <div className="mb-4 p-3 bg-muted rounded-lg flex items-center gap-2 text-sm">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span>{pendingCount} розділів очікують модерації</span>
+          <a href="/admin/chapters" className="text-primary hover:underline ml-auto">
+            Переглянути →
+          </a>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="mb-4 flex items-center gap-2 border-b overflow-x-auto">
         {entries.map(([teamId, teamChapters]) => {

@@ -28,12 +28,9 @@ export default function Rating({ novelId, initialRating, userRating: initialUser
       })
 
       if (res.ok) {
-        setUserRating(value)
-        // Update average (optimistic)
         const data = await res.json()
-        const allRatings = await fetch(`/api/ratings?novelId=${novelId}`).then(r => r.json())
-        const avg = allRatings.reduce((sum: number, r: { value: number }) => sum + r.value, 0) / allRatings.length
-        setRating(avg)
+        setUserRating(value)
+        setRating(data.newAverage)
       }
     } catch (error) {
       console.error('Rating error:', error)

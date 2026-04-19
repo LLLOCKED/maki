@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const revalidate = 3600
+
 export async function GET() {
   try {
     const tags = await prisma.tag.findMany({
       orderBy: { name: 'asc' },
     })
-    return NextResponse.json(tags)
+    return NextResponse.json(tags, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      },
+    })
   } catch (error) {
     console.error('Tags fetch error:', error)
     return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 })

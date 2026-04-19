@@ -23,6 +23,7 @@ interface Chapter {
 interface ReaderClientProps {
   chapters: Chapter[]
   teamChapters: Chapter[]
+  allTranslations?: Chapter[]
   initialChapterId?: string
   novelSlug: string
   chapterNumber: number
@@ -40,6 +41,7 @@ interface ReaderClientProps {
 export default function ReaderClient({
   chapters,
   teamChapters,
+  allTranslations,
   initialChapterId,
   novelSlug,
   chapterNumber,
@@ -106,35 +108,57 @@ export default function ReaderClient({
       />
 
       {/* Translation Selector */}
-      {chapters.length > 1 && (
-        <div className="border-b bg-muted/30 px-4 py-3">
-          <div className="container mx-auto flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Переклад:</span>
-            <div className="flex flex-wrap gap-2">
-              {chapters.map((chapter) => (
-                <button
-                  key={chapter.id}
-                  onClick={() => router.push(`/read/${novelSlug}/${chapter.number}?chapter=${chapter.id}`)}
-                  className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm transition-colors ${
-                    selectedChapterId === chapter.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80'
-                  }`}
-                >
-                  {chapter.team ? (
-                    <>
-                      <Users className="h-3 w-3" />
-                      {chapter.team.name}
-                    </>
-                  ) : (
-                    'Без команди'
-                  )}
-                </button>
-              ))}
+      {(() => {
+        // Use allTranslations if available, otherwise fall back to chapters
+        const translationChapters = allTranslations || chapters
+        // Group chapters by team, show one button per team
+        const teamMap = new Map<string | null, typeof translationChapters>()
+        for (const chapter of translationChapters) {
+          const key = chapter.team?.id || null
+          if (!teamMap.has(key)) {
+            teamMap.set(key, [])
+          }
+          teamMap.get(key)!.push(chapter)
+        }
+        const teamEntries = Array.from(teamMap.entries())
+
+        // Only show if there's more than one team
+        if (teamEntries.length <= 1) return null
+
+        return (
+          <div className="border-b bg-muted/30 px-4 py-3">
+            <div className="container mx-auto flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">Переклад:</span>
+              <div className="flex flex-wrap gap-2">
+                {teamEntries.map(([teamId, teamChapters]) => {
+                  const teamName = teamId ? teamChapters[0].team?.name : null
+                  const isSelected = teamChapters.some(c => c.id === selectedChapterId)
+                  return (
+                    <button
+                      key={teamId || 'no-team'}
+                      onClick={() => router.push(`/read/${novelSlug}/${teamChapters[0].number}?chapter=${teamChapters[0].id}`)}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted hover:bg-muted/80'
+                      }`}
+                    >
+                      {teamName ? (
+                        <>
+                          <Users className="h-3 w-3" />
+                          {teamName}
+                        </>
+                      ) : (
+                        'Без команди'
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <article
         className={`${themeClass} ${fontSizeClass} flex-1 px-4 py-8 md:px-8`}

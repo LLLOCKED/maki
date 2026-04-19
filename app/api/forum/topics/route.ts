@@ -23,7 +23,9 @@ export async function GET(request: Request) {
         novel: {
           select: { id: true, title: true, slug: true },
         },
-        votes: true,
+        votes: {
+          select: { value: true },
+        },
         _count: {
           select: { comments: true },
         },

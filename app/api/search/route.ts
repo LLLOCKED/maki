@@ -12,6 +12,12 @@ export async function GET(request: Request) {
   try {
     const [novels, teams, users] = await Promise.all([
       prisma.novel.findMany({
+        where: {
+          OR: [
+            { title: { contains: query } },
+            { originalName: { contains: query } },
+          ],
+        },
         take: 20,
         select: {
           id: true,
@@ -22,6 +28,9 @@ export async function GET(request: Request) {
         },
       }),
       prisma.team.findMany({
+        where: {
+          name: { contains: query },
+        },
         take: 10,
         select: {
           id: true,
@@ -29,10 +38,10 @@ export async function GET(request: Request) {
         },
       }),
       prisma.user.findMany({
-        take: 10,
         where: {
           name: { contains: query },
         },
+        take: 10,
         select: {
           id: true,
           name: true,
@@ -40,25 +49,14 @@ export async function GET(request: Request) {
       }),
     ])
 
-    // Filter client-side for case-insensitive search including Cyrillic
-    const filteredNovels = novels.filter(
-      (n) =>
-        n.title.toLowerCase().includes(query) ||
-        (n.originalName && n.originalName.toLowerCase().includes(query))
-    )
-
-    const filteredTeams = teams.filter((t) =>
-      t.name.toLowerCase().includes(query)
-    )
-
     const results = [
-      ...filteredNovels.map((n) => ({
+      ...novels.map((n) => ({
         type: 'novel' as const,
         id: n.slug,
         title: n.title,
         coverUrl: n.coverUrl,
       })),
-      ...filteredTeams.map((t) => ({
+      ...teams.map((t) => ({
         type: 'team' as const,
         id: t.id,
         title: t.name,

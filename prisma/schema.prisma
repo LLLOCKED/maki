@@ -41,6 +41,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  role          String   @default("USER") // OWNER, ADMIN, MODERATOR, USER
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -137,6 +138,7 @@ model ForumTopic {
   userId      String
   categoryId  String
   novelId     String?
+  moderationStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   comments    ForumComment[]
@@ -227,8 +229,9 @@ model Novel {
   status           String   @default("ONGOING") // ONGOING, COMPLETED, SUSPENDED
   translationStatus String  @default("TRANSLATING") // TRANSLATING, DROPPED, COMPLETED, HIATUS
   releaseYear      Int?
-  averageRating    Float    @default(0)
-  viewCount        Int      @default(0)
+  averageRating    Float   @default(0)
+  viewCount        Int     @default(0)
+  moderationStatus String  @default("PENDING") // PENDING, APPROVED, REJECTED
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -274,6 +277,7 @@ model Chapter {
   content   String
   novelId   String
   teamId    String?
+  moderationStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

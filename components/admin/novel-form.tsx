@@ -88,12 +88,13 @@ export default function NovelForm() {
   const [newTag, setNewTag] = useState('')
 
   useEffect(() => {
-    // Generate slug from title
-    if (title && !slug) {
+    // Generate slug from original name (prioritize), fallback to title
+    const source = originalName || title
+    if (source && !slug) {
       setSlug(
-        title
+        source
           .toLowerCase()
-          .replace(/[^a-zа-яё0-9]+/g, '-')
+          .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
       )
     }
@@ -110,7 +111,7 @@ export default function NovelForm() {
       setPublishers(p)
       setAuthors(a)
     })
-  }, [title, slug])
+  }, [title, slug, originalName])
 
   async function handleAddPublisher() {
     if (!newPublisher.trim()) return
