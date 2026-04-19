@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import ForumCommentSection from '@/components/forum/forum-comment-section'
+import TopicVoteButtons from '@/components/forum/topic-vote-buttons'
 
 interface TopicPageProps {
   params: { id: string }
@@ -30,6 +31,7 @@ async function getTopic(id: string) {
       category: {
         select: { id: true, name: true, slug: true, color: true },
       },
+      votes: true,
       comments: {
         where: { parentId: null },
         include: {
@@ -117,28 +119,36 @@ export default async function TopicPage({ params }: TopicPageProps) {
 
           <h1 className="mb-4 text-2xl font-bold">{topic.title}</h1>
 
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              {topic.user.image ? (
-                <img
-                  src={topic.user.image}
-                  alt={topic.user.name || ''}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-lg font-medium">
-                  {topic.user.name?.[0] || '?'}
-                </span>
-              )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                {topic.user.image ? (
+                  <img
+                    src={topic.user.image}
+                    alt={topic.user.name || ''}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-lg font-medium">
+                    {topic.user.name?.[0] || '?'}
+                  </span>
+                )}
+              </div>
+              <div>
+                <Link
+                  href={`/user/${topic.user.id}`}
+                  className="font-medium hover:underline"
+                >
+                  {topic.user.name || 'Пользователь'}
+                </Link>
+              </div>
             </div>
-            <div>
-              <Link
-                href={`/user/${topic.user.id}`}
-                className="font-medium hover:underline"
-              >
-                {topic.user.name || 'Пользователь'}
-              </Link>
-            </div>
+
+            <TopicVoteButtons
+              topicId={topic.id}
+              votes={topic.votes}
+              currentUserId={session?.user?.id}
+            />
           </div>
 
           <div className="mt-6 whitespace-pre-wrap text-muted-foreground">
