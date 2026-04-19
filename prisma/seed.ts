@@ -1,6 +1,239 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+
+async function createTestUsers() {
+  const users = [
+    {
+      name: 'Олександр',
+      email: 'alex@test.com',
+      password: 'password123',
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex',
+    },
+    {
+      name: 'Марія',
+      email: 'maria@test.com',
+      password: 'password123',
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=maria',
+    },
+    {
+      name: 'Іван',
+      email: 'ivan@test.com',
+      password: 'password123',
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ivan',
+    },
+    {
+      name: 'Анна',
+      email: 'anna@test.com',
+      password: 'password123',
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=anna',
+    },
+    {
+      name: 'Дмитро',
+      email: 'dmytro@test.com',
+      password: 'password123',
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dmytro',
+    },
+  ]
+
+  const createdUsers = []
+  for (const userData of users) {
+    const passwordHash = await bcrypt.hash(userData.password, 12)
+    const user = await prisma.user.upsert({
+      where: { email: userData.email },
+      update: {
+        name: userData.name,
+        image: userData.image,
+        passwordHash,
+      },
+      create: {
+        name: userData.name,
+        email: userData.email,
+        image: userData.image,
+        passwordHash,
+      },
+    })
+    createdUsers.push(user)
+  }
+
+  console.log('Created test users:', createdUsers.map(u => u.name).join(', '))
+  return createdUsers
+}
+
+async function createForumTopics(users: any[], categories: any[]) {
+  const topics = [
+    {
+      title: 'Чудова нова новела!',
+      content: 'Знайшов чудову новелу в жанрі ісейкай. Дуже рекомендую до прочитання! Хтось ще читав?',
+      categorySlug: 'discussion',
+      userIndex: 0,
+    },
+    {
+      title: 'Помилка при завантаженні глави',
+      content: 'При спробі відкрити главу 5 новели "Магистр неведения" виникає помилка. Прошу виправити.',
+      categorySlug: 'bugs',
+      userIndex: 1,
+    },
+    {
+      title: 'Шукаю перекладачів для нової новели',
+      content: 'Є бажання перекласти популярну японську новелу. Потрібні: перекладач, редактор, тайпер.',
+      categorySlug: 'team-search',
+      userIndex: 2,
+    },
+    {
+      title: 'Пропозиція щодо темної теми',
+      content: 'Було б непогано додати можливість вибору темної теми для читання вночі.',
+      categorySlug: 'suggestions',
+      userIndex: 3,
+    },
+    {
+      title: 'Який ваш улюблений жанр?',
+      content: 'Цікаво дізнатися, який жанр найбільше подобається спільноті. Мій улюблений - ісейкай!',
+      categorySlug: 'offtopic',
+      userIndex: 4,
+    },
+    {
+      title: 'Проблема з реєстрацією',
+      content: 'Не можу зареєструватися на сайті. Після введення даних сторінка просто оновлюється.',
+      categorySlug: 'bugs',
+      userIndex: 0,
+    },
+    {
+      title: 'Обговорення нової глави Магистр неведения',
+      content: 'Щойно вийшла нова глава! Що думаєте про сюжет? Мені здається, що головний герой нарешті знайшов своє покликання.',
+      categorySlug: 'discussion',
+      userIndex: 1,
+    },
+    {
+      title: 'Потрібен тайпер для команди',
+      content: 'Наша команда шукає тайпера для роботи над новелами в жанрі романтика. Звертатися в особисті.',
+      categorySlug: 'team-search',
+      userIndex: 2,
+    },
+  ]
+
+  const createdTopics = []
+  for (const topicData of topics) {
+    const category = categories.find(c => c.slug === topicData.categorySlug)
+    const user = users[topicData.userIndex]
+
+    const topic = await prisma.forumTopic.create({
+      data: {
+        title: topicData.title,
+        content: topicData.content,
+        userId: user.id,
+        categoryId: category.id,
+      },
+    })
+    createdTopics.push(topic)
+  }
+
+  console.log('Created forum topics:', createdTopics.length)
+  return createdTopics
+}
+
+async function createForumComments(users: any[], topics: any[]) {
+  const commentsData = [
+    { topicIndex: 0, userIndex: 1, content: 'Дякую за рекомендацію! Обов\'язково спробую почитати.' },
+    { topicIndex: 0, userIndex: 2, content: 'Теж читав, дуже захоплююча новела!' },
+    { topicIndex: 0, userIndex: 3, content: 'Погоджуюсь, один з кращих ісейкаїв останнього часу.' },
+    { topicIndex: 1, userIndex: 0, content: 'Спробуйте очистити кеш браузера та спробувати знову.' },
+    { topicIndex: 1, userIndex: 4, content: 'У мене теж була така проблема, але сама вирішилась.' },
+    { topicIndex: 2, userIndex: 1, content: 'Можу допомогти з перекладом! Маю досвід.' },
+    { topicIndex: 2, userIndex: 3, content: 'А я можу редагувати. Пишіть в особисті.' },
+    { topicIndex: 3, userIndex: 0, content: 'Чудова ідея! Темна тема дуже потрібна.' },
+    { topicIndex: 4, userIndex: 2, content: 'Мій улюблений - романтика та фентезі!' },
+    { topicIndex: 4, userIndex: 0, content: 'Обожнюю комедію та ісейкай.' },
+    { topicIndex: 5, userIndex: 3, content: 'Спробуйте використати інший браузер.' },
+    { topicIndex: 5, userIndex: 1, content: 'У мене一切都 працює. Може проблема в акаунті?' },
+    { topicIndex: 6, userIndex: 4, content: 'Так, глава чудова! Герой розвивається як персонаж.' },
+    { topicIndex: 6, userIndex: 0, content: 'Не можу дочекатися наступної глави!' },
+  ]
+
+  const createdComments = []
+  for (const commentData of commentsData) {
+    const comment = await prisma.forumComment.create({
+      data: {
+        content: commentData.content,
+        userId: users[commentData.userIndex].id,
+        topicId: topics[commentData.topicIndex].id,
+      },
+    })
+    createdComments.push(comment)
+  }
+
+  console.log('Created forum comments:', createdComments.length)
+  return createdComments
+}
+
+async function createTopicVotes(users: any[], topics: any[]) {
+  const votesData = [
+    { topicIndex: 0, userIndex: 1, value: 1 },
+    { topicIndex: 0, userIndex: 2, value: 1 },
+    { topicIndex: 0, userIndex: 3, value: 1 },
+    { topicIndex: 1, userIndex: 2, value: -1 },
+    { topicIndex: 2, userIndex: 0, value: 1 },
+    { topicIndex: 2, userIndex: 3, value: 1 },
+    { topicIndex: 3, userIndex: 1, value: 1 },
+    { topicIndex: 3, userIndex: 4, value: 1 },
+    { topicIndex: 4, userIndex: 0, value: 1 },
+    { topicIndex: 5, userIndex: 2, value: -1 },
+    { topicIndex: 6, userIndex: 1, value: 1 },
+    { topicIndex: 6, userIndex: 2, value: 1 },
+    { topicIndex: 6, userIndex: 3, value: 1 },
+    { topicIndex: 7, userIndex: 4, value: 1 },
+  ]
+
+  for (const voteData of votesData) {
+    await prisma.forumTopicVote.upsert({
+      where: {
+        userId_topicId: {
+          userId: users[voteData.userIndex].id,
+          topicId: topics[voteData.topicIndex].id,
+        },
+      },
+      update: { value: voteData.value },
+      create: {
+        userId: users[voteData.userIndex].id,
+        topicId: topics[voteData.topicIndex].id,
+        value: voteData.value,
+      },
+    })
+  }
+
+  console.log('Created topic votes:', votesData.length)
+}
+
+async function createNovelComments(users: any[], novels: any[]) {
+  const commentsData = [
+    { novelIndex: 0, userIndex: 0, content: 'Чудова новела! Головний герой неймовірно розвивається протягом історії.' },
+    { novelIndex: 0, userIndex: 1, content: 'Мене затягнуло з перших сторінок. Рекомендую всім!' },
+    { novelIndex: 1, userIndex: 2, content: 'Системний адміністратор - класика жанру. Читав всю ніч!' },
+    { novelIndex: 1, userIndex: 3, content: 'Погоджуюсь, одна з найкращих ісейкай новел.' },
+    { novelIndex: 2, userIndex: 4, content: 'Непогано, але темп розповіді міг би бути швидшим.' },
+    { novelIndex: 3, userIndex: 0, content: 'Романтика на найвищому рівні! Два головних герої - просто ідеал.' },
+    { novelIndex: 4, userIndex: 1, content: 'Гострий сюжет та цікаві бойові сцени. Читаю далі!' },
+    { novelIndex: 5, userIndex: 2, content: 'Затишна атмосфера та милі персонажі. Захоплює.' },
+    { novelIndex: 6, userIndex: 3, content: 'Епічний сюжет та непередбачувані повороти. Рекомендую!' },
+    { novelIndex: 7, userIndex: 4, content: 'Цікава концепція, але переклад призупинився. Шкода.' },
+  ]
+
+  const createdComments = []
+  for (const commentData of commentsData) {
+    const comment = await prisma.comment.create({
+      data: {
+        content: commentData.content,
+        userId: users[commentData.userIndex].id,
+        novelId: novels[commentData.novelIndex].id,
+      },
+    })
+    createdComments.push(comment)
+  }
+
+  console.log('Created novel comments:', createdComments.length)
+  return createdComments
+}
 
 async function main() {
   // Create forum categories
@@ -409,6 +642,20 @@ async function main() {
       `Created novel: ${novel.title} with ${chapterCount} chapters (team: ${team.name})`
     )
   }
+
+  // Get all created novels for comments
+  const allNovels = await prisma.novel.findMany()
+
+  // Create test users
+  const users = await createTestUsers()
+
+  // Create forum topics and comments
+  const topics = await createForumTopics(users, forumCategories)
+  await createForumComments(users, topics)
+  await createTopicVotes(users, topics)
+
+  // Create novel comments
+  await createNovelComments(users, allNovels)
 }
 
 function generateChapterContent(chapterNum: number): string {
