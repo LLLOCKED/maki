@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { User, BookOpen, MessageCircle, Users, Star } from 'lucide-react'
 
@@ -17,8 +16,8 @@ export async function generateMetadata({ params }: UserPageProps) {
     select: { name: true },
   })
 
-  if (!user) return { title: 'Пользователь не найден' }
-  return { title: `${user.name || 'Пользователь'} — RanobeHub` }
+  if (!user) return { title: 'Користувач не знайден' }
+  return { title: `${user.name || 'Користувач'} — honni` }
 }
 
 export default async function UserPage({ params }: UserPageProps) {
@@ -72,15 +71,13 @@ export default async function UserPage({ params }: UserPageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
       <div className="mb-8 flex items-start gap-6">
-        <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted">
+        <div className="h-24 w-24 overflow-hidden rounded-full bg-muted">
           {user.image ? (
-            <Image
+            <img
               src={user.image}
               alt={user.name || ''}
-              fill
-              className="object-cover"
+              className="h-full w-full object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -89,25 +86,24 @@ export default async function UserPage({ params }: UserPageProps) {
           )}
         </div>
         <div>
-          <h1 className="text-3xl font-bold">{user.name || 'Пользователь'}</h1>
+          <h1 className="text-3xl font-bold">{user.name || 'Користувач'}</h1>
           {isOwn && user.email && (
             <p className="text-muted-foreground">{user.email}</p>
           )}
           <p className="mt-1 text-sm text-muted-foreground">
-            На сайте с {new Date(user.createdAt).toLocaleDateString('ru-RU')}
+            На сайті з {new Date(user.createdAt).toLocaleDateString('uk-UA')}
           </p>
         </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Stats */}
         <div className="space-y-4">
           <Card>
             <CardContent className="flex items-center gap-4 p-4">
               <BookOpen className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-2xl font-bold">{user.favorites.length}</p>
-                <p className="text-sm text-muted-foreground">В избранном</p>
+                <p className="text-sm text-muted-foreground">В обраному</p>
               </div>
             </CardContent>
           </Card>
@@ -117,7 +113,7 @@ export default async function UserPage({ params }: UserPageProps) {
               <Star className="h-8 w-8 text-yellow-500" />
               <div>
                 <p className="text-2xl font-bold">{user.ratings.length}</p>
-                <p className="text-sm text-muted-foreground">Оценок</p>
+                <p className="text-sm text-muted-foreground">Оцінок</p>
               </div>
             </CardContent>
           </Card>
@@ -127,20 +123,18 @@ export default async function UserPage({ params }: UserPageProps) {
               <MessageCircle className="h-8 w-8 text-blue-500" />
               <div>
                 <p className="text-2xl font-bold">{user.comments.length}</p>
-                <p className="text-sm text-muted-foreground">Комментариев</p>
+                <p className="text-sm text-muted-foreground">Коментарів</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Content */}
         <div className="md:col-span-2 space-y-8">
-          {/* Teams */}
           {user.teamMemberships.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                 <Users className="h-5 w-5" />
-                Команды
+                Команди
               </h2>
               <div className="flex flex-wrap gap-2">
                 {user.teamMemberships.map((membership) => (
@@ -154,24 +148,22 @@ export default async function UserPage({ params }: UserPageProps) {
             </section>
           )}
 
-          {/* Favorites */}
           {user.favorites.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                 <BookOpen className="h-5 w-5" />
-                Избранное
+                Обране
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 {user.favorites.map((novel) => (
                   <Link key={novel.id} href={`/novel/${novel.slug}`}>
                     <Card className="overflow-hidden transition-shadow hover:shadow-lg">
-                      <div className="relative aspect-[3/4] bg-muted">
+                      <div className="aspect-[3/4] bg-muted">
                         {novel.coverUrl ? (
-                          <Image
+                          <img
                             src={novel.coverUrl}
                             alt={novel.title}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center">
@@ -189,24 +181,22 @@ export default async function UserPage({ params }: UserPageProps) {
             </section>
           )}
 
-          {/* Ratings */}
           {user.ratings.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                 <Star className="h-5 w-5 text-yellow-500" />
-                Оценки
+                Оцінки
               </h2>
               <div className="space-y-2">
                 {user.ratings.slice(0, 5).map((rating) => (
                   <Link key={rating.id} href={`/novel/${rating.novel.slug}`}>
                     <Card className="flex items-center gap-4 p-3 transition-colors hover:bg-muted">
-                      <div className="relative h-12 w-9 overflow-hidden rounded bg-muted">
+                      <div className="h-12 w-9 overflow-hidden rounded bg-muted">
                         {rating.novel.coverUrl ? (
-                          <Image
+                          <img
                             src={rating.novel.coverUrl}
                             alt={rating.novel.title}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center">
@@ -236,12 +226,11 @@ export default async function UserPage({ params }: UserPageProps) {
             </section>
           )}
 
-          {/* Recent Comments */}
           {user.comments.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                 <MessageCircle className="h-5 w-5 text-blue-500" />
-                Комментарии
+                Коментарі
               </h2>
               <div className="space-y-2">
                 {user.comments.slice(0, 5).map((comment) => (
@@ -251,7 +240,7 @@ export default async function UserPage({ params }: UserPageProps) {
                         href={`/novel/${comment.novel?.slug}`}
                         className="font-medium hover:underline"
                       >
-                        {comment.novel?.title || 'Новелла'}
+                        {comment.novel?.title || 'Новела'}
                       </Link>
                       {comment.chapter && (
                         <span className="text-muted-foreground">
@@ -259,7 +248,7 @@ export default async function UserPage({ params }: UserPageProps) {
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground">
-                        {new Date(comment.createdAt).toLocaleDateString('ru-RU')}
+                        {new Date(comment.createdAt).toLocaleDateString('uk-UA')}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">
