@@ -141,7 +141,75 @@ export default async function HomePage() {
           )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
-            {/* Left Column: Forum Topics */}
+            {/* Left Column: Novel Rankings */}
+            <div className="lg:col-span-2">
+              {/* Popular Novels */}
+              <div className="mb-6">
+                <div className="mb-3 flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-500" />
+                  <h2 className="text-lg font-semibold">Популярні тайтли</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {popularNovels.map((novel) => (
+                    <SmallNovelCard
+                      key={novel.id}
+                      novel={{
+                        id: novel.id,
+                        title: novel.title,
+                        slug: novel.slug,
+                        coverUrl: novel.coverUrl,
+                        viewCount: novel.viewCount,
+                      }}
+                      variant="rating"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Discussed Novels */}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-blue-500" />
+                  <h2 className="text-lg font-semibold">Обговорювані тайтли</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {discussedNovels.map((novel) => (
+                    <SmallNovelCard
+                      key={novel.id}
+                      novel={{
+                        id: novel.id,
+                        title: novel.title,
+                        slug: novel.slug,
+                        coverUrl: novel.coverUrl,
+                        _count: novel._count,
+                      }}
+                      variant="discussed"
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Middle Column: All Novels */}
+            <div className="lg:col-span-2">
+              <div className="mb-4 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Всі новели</h2>
+              </div>
+              <div className="flex flex-col gap-3">
+                {newNovels.map((novel) => (
+                  <HorizontalNovelCard
+                    key={novel.id}
+                    novel={{
+                      ...novel,
+                      genres: novel.genres,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Forum Topics */}
             <div className="lg:col-span-2">
               {/* Popular Topics */}
               <div className="mb-6">
@@ -173,74 +241,6 @@ export default async function HomePage() {
                     <ForumTopicCard
                       key={topic.id}
                       topic={topic}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Middle Column: All Novels */}
-            <div className="lg:col-span-2">
-              <div className="mb-4 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Всі новели</h2>
-              </div>
-              <div className="flex flex-col gap-3">
-                {newNovels.map((novel) => (
-                  <HorizontalNovelCard
-                    key={novel.id}
-                    novel={{
-                      ...novel,
-                      genres: novel.genres,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Right Columns: Novel rankings */}
-            <div className="lg:col-span-2 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
-              {/* Popular Novels */}
-              <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-500" />
-                  <h2 className="text-xl font-semibold">Популярні</h2>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {popularNovels.map((novel) => (
-                    <SmallNovelCard
-                      key={novel.id}
-                      novel={{
-                        id: novel.id,
-                        title: novel.title,
-                        slug: novel.slug,
-                        coverUrl: novel.coverUrl,
-                        viewCount: novel.viewCount,
-                      }}
-                      variant="rating"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Discussed Novels */}
-              <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-blue-500" />
-                  <h2 className="text-xl font-semibold">Обговорювані</h2>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {discussedNovels.map((novel) => (
-                    <SmallNovelCard
-                      key={novel.id}
-                      novel={{
-                        id: novel.id,
-                        title: novel.title,
-                        slug: novel.slug,
-                        coverUrl: novel.coverUrl,
-                        _count: novel._count,
-                      }}
-                      variant="discussed"
                     />
                   ))}
                 </div>
