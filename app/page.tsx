@@ -140,7 +140,7 @@ export default async function HomePage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-7">
             {/* Left Column: Novel Rankings */}
             <div className="lg:col-span-2">
               {/* Popular Novels */}
@@ -191,7 +191,7 @@ export default async function HomePage() {
             </div>
 
             {/* Middle Column: All Novels */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <div className="mb-4 flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Всі новели</h2>
