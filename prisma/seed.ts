@@ -8,27 +8,27 @@ async function main() {
     prisma.forumCategory.upsert({
       where: { slug: 'bugs' },
       update: {},
-      create: { name: 'Баги', slug: 'bugs', description: 'Сообщения об ошибках', color: '#ef4444', order: 1 },
+      create: { name: 'Помилки', slug: 'bugs', description: 'Повідомлення про помилки', color: '#ef4444', order: 1 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'discussion' },
       update: {},
-      create: { name: 'Обсуждение', slug: 'discussion', description: 'Общие вопросы и обсуждения', color: '#6366f1', order: 2 },
+      create: { name: 'Обговорення', slug: 'discussion', description: 'Загальні питання та обговорення', color: '#6366f1', order: 2 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'team-search' },
       update: {},
-      create: { name: 'Поиск команды', slug: 'team-search', description: 'Поиск команды для перевода', color: '#22c55e', order: 3 },
+      create: { name: 'Пошук команди', slug: 'team-search', description: 'Пошук команди для перекладу', color: '#22c55e', order: 3 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'suggestions' },
       update: {},
-      create: { name: 'Предложка', slug: 'suggestions', description: 'Ваши идеи и предложения', color: '#f59e0b', order: 4 },
+      create: { name: 'Пропозиції', slug: 'suggestions', description: 'Ваші ідеї та пропозиції', color: '#f59e0b', order: 4 },
     }),
     prisma.forumCategory.upsert({
       where: { slug: 'offtopic' },
       update: {},
-      create: { name: 'Оффтоп', slug: 'offtopic', description: 'Всё остальное', color: '#6b7280', order: 5 },
+      create: { name: 'Офтоп', slug: 'offtopic', description: 'Все інше', color: '#6b7280', order: 5 },
     }),
   ])
 
@@ -39,7 +39,7 @@ async function main() {
     prisma.genre.upsert({
       where: { slug: 'isekai' },
       update: {},
-      create: { name: 'Исекай', slug: 'isekai' },
+      create: { name: 'Ісейкай', slug: 'isekai' },
     }),
     prisma.genre.upsert({
       where: { slug: 'romance' },
@@ -49,17 +49,17 @@ async function main() {
     prisma.genre.upsert({
       where: { slug: 'action' },
       update: {},
-      create: { name: 'Экшен', slug: 'action' },
+      create: { name: 'Екшен', slug: 'action' },
     }),
     prisma.genre.upsert({
       where: { slug: 'fantasy' },
       update: {},
-      create: { name: 'Фэнтези', slug: 'fantasy' },
+      create: { name: 'Фентезі', slug: 'fantasy' },
     }),
     prisma.genre.upsert({
       where: { slug: 'comedy' },
       update: {},
-      create: { name: 'Комедия', slug: 'comedy' },
+      create: { name: 'Комедія', slug: 'comedy' },
     }),
     prisma.genre.upsert({
       where: { slug: 'drama' },
