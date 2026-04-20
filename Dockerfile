@@ -18,7 +18,7 @@ RUN npx prisma generate
 
 RUN npm run build
 
-# Production image, copy all the files and run next
+# Production image
 FROM node:20-bookworm AS runner
 WORKDIR /app
 
@@ -27,19 +27,14 @@ ENV NODE_ENV production
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs
 
+# Copy full node_modules (includes prisma CLI from devDependencies)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-# Set the correct permission for prerender cache
 RUN mkdir .next && chown nextjs:nodejs .next
-
-# Copy prisma folder for migrations
-COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
-COPY --from=builder /app/prisma /app/prisma
-
-# Automatically leverage output traces to reduce image size
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
@@ -48,4 +43,4 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["sh", "-c", "node node_modules/.bin/prisma db push --skip-generate && node server.js"]
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js db push && node server.js"]
