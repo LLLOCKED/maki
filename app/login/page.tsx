@@ -29,7 +29,7 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Невірний email або пароль')
+        setError('Будь ласка, підтвердіть свою пошту перед входом')
       } else {
         window.location.href = '/'
       }
@@ -86,6 +86,12 @@ export default function LoginPage() {
                 className="mt-1"
                 required
               />
+            </div>
+
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Забули пароль?
+              </Link>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>

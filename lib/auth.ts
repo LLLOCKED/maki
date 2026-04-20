@@ -35,6 +35,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
+        // Check if email is verified
+        if (!user.emailVerified) {
+          return null
+        }
+
         const isValid = await bcrypt.compare(
           credentials.password as string,
           user.passwordHash

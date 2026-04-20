@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen } from 'lucide-react'
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,6 +20,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess(false)
 
     if (password !== confirmPassword) {
       setError('Паролі не співпадають')
@@ -47,18 +47,9 @@ export default function RegisterPage() {
         return
       }
 
-      // Auto sign in after registration
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError('Акаунт створено, але не вдалось увійти. Спробуйте увійти вручну.')
-      } else {
-        window.location.href = '/'
-      }
+      // Show success message instead of auto-login
+      // User needs to verify email first
+      setSuccess(true)
     } catch (err) {
       setError('Виникла помилка при реєстрації')
     } finally {
@@ -68,6 +59,36 @@ export default function RegisterPage() {
 
   const handleGoogleLogin = () => {
     signIn('google', { callbackUrl: '/' })
+  }
+
+  if (success) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold">Перевірте свою пошту!</h2>
+              <p className="text-muted-foreground">
+                Ми надіслали лист з посиланням для підтвердження на <strong>{email}</strong>.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Перейдіть за посиланням у листі, щоб активувати свій акаунт.
+              </p>
+              <div className="pt-4">
+                <Link href="/login">
+                  <Button variant="outline">Повернутися до входу</Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -147,7 +168,7 @@ export default function RegisterPage() {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  или
+                  або
                 </span>
               </div>
             </div>
