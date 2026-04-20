@@ -1,16 +1,17 @@
-FROM node:20-alpine AS base
+FROM node:20-bookworm AS base
 
 # Install dependencies only when needed
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat libssl1.1
+FROM node:20-bookworm AS deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libc6-compat \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Rebuild the source code only when needed
-FROM node:20-alpine AS builder
-RUN apk add --no-cache libc6-compat libssl1.1
+FROM node:20-bookworm AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -21,14 +22,13 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM node:20-alpine AS runner
-RUN apk add --no-cache libssl1.1
+FROM node:20-bookworm AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
