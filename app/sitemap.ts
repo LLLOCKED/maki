@@ -1,7 +1,9 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
 
-const BASE_URL = 'https://ranobehub.com'
+const BASE_URL = 'https://honni.fun'
+
+export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const novels = await prisma.novel.findMany({
