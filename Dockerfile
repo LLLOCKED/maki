@@ -2,9 +2,6 @@ FROM node:20-bookworm AS base
 
 # Install dependencies only when needed
 FROM node:20-bookworm AS deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libc6-compat \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
