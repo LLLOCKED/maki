@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { testNovels } from '@/tests/fixtures/novels'
-import { createMockSession, authMock } from '@/tests/mocks/auth'
+import type { Session } from 'next-auth'
 
 const prismaMock = {
   novel: {
@@ -15,6 +15,19 @@ const prismaMock = {
 vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }))
+
+const mockAuth = vi.fn()
+
+vi.mock('@/lib/auth', () => ({
+  auth: mockAuth,
+}))
+
+function createMockSession(userId: string, role = 'USER'): Session {
+  return {
+    user: { id: userId, name: 'Test', email: 'test@test.com', role },
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }
+}
 
 describe('GET /api/novels', () => {
   beforeEach(() => {
@@ -73,12 +86,11 @@ describe('GET /api/novels', () => {
 describe('POST /api/novels', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
   })
 
   it('should create ORIGINAL novel with authorId set', async () => {
-    const session = createMockSession({ id: 'user-author-id', email: 'author@test.com', name: 'Author' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-author-id'))
 
     const mockNovel = { ...testNovels.original, id: 'new-novel-id' }
     prismaMock.novel.create.mockResolvedValue(mockNovel)
@@ -111,8 +123,7 @@ describe('POST /api/novels', () => {
   })
 
   it('should create translated novel without authorId', async () => {
-    const session = createMockSession({ id: 'user-regular-id', email: 'user@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     const mockNovel = { ...testNovels.translated, id: 'new-translated-id' }
     prismaMock.novel.create.mockResolvedValue(mockNovel)
@@ -144,7 +155,7 @@ describe('POST /api/novels', () => {
   })
 
   it('should reject unauthenticated request', async () => {
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
 
     const request = new Request('http://localhost/api/novels', {
       method: 'POST',
@@ -163,8 +174,7 @@ describe('POST /api/novels', () => {
   })
 
   it('should require title, slug, description', async () => {
-    const session = createMockSession({ id: 'user-id', email: 'test@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-id'))
 
     const request = new Request('http://localhost/api/novels', {
       method: 'POST',

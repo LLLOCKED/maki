@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { testNovels } from '@/tests/fixtures/novels'
-import { createMockSession, authMock } from '@/tests/mocks/auth'
+import type { Session } from 'next-auth'
 
 const prismaMock = {
   novel: {
@@ -15,15 +15,27 @@ vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }))
 
+const mockAuth = vi.fn()
+
+vi.mock('@/lib/auth', () => ({
+  auth: mockAuth,
+}))
+
+function createMockSession(userId: string, role = 'USER'): Session {
+  return {
+    user: { id: userId, name: 'Test', email: 'test@test.com', role },
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }
+}
+
 describe('POST /api/chapters', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
   })
 
   it('should allow author to add chapter to ORIGINAL novel', async () => {
-    const session = createMockSession({ id: 'user-author-id', email: 'author@test.com', name: 'Author' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-author-id'))
 
     const mockNovel = {
       ...testNovels.original,
@@ -62,8 +74,7 @@ describe('POST /api/chapters', () => {
   })
 
   it('should reject non-author adding chapter to ORIGINAL novel', async () => {
-    const session = createMockSession({ id: 'user-other-id', email: 'other@test.com', name: 'Other User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-other-id'))
 
     const mockNovel = {
       ...testNovels.original,
@@ -90,8 +101,7 @@ describe('POST /api/chapters', () => {
   })
 
   it('should require teamId for translated novels', async () => {
-    const session = createMockSession({ id: 'user-regular-id', email: 'user@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     prismaMock.novel.findUnique.mockResolvedValue(testNovels.translated)
 
@@ -114,8 +124,7 @@ describe('POST /api/chapters', () => {
   })
 
   it('should allow any user to add chapter to translated novel with teamId', async () => {
-    const session = createMockSession({ id: 'user-regular-id', email: 'user@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     prismaMock.novel.findUnique.mockResolvedValue(testNovels.translated)
 
@@ -150,7 +159,7 @@ describe('POST /api/chapters', () => {
   })
 
   it('should reject unauthenticated request', async () => {
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
 
     const request = new Request('http://localhost/api/chapters', {
       method: 'POST',
@@ -169,8 +178,7 @@ describe('POST /api/chapters', () => {
   })
 
   it('should return 404 for non-existent novel', async () => {
-    const session = createMockSession({ id: 'user-id', email: 'test@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-id'))
 
     prismaMock.novel.findUnique.mockResolvedValue(null)
 

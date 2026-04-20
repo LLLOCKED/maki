@@ -6,12 +6,11 @@ process.env.AUTH_SECRET = 'test-secret-for-testing-only'
 process.env.AUTH_GOOGLE_ID = 'test-google-client-id'
 process.env.AUTH_GOOGLE_SECRET = 'test-google-client-secret'
 
-// Import the shared auth mock from mocks/auth.ts
-const { authMock } = await import('@/tests/mocks/auth')
+// Mock NextAuth with a simple mock function
+const mockAuth = vi.fn()
 
-// Mock NextAuth with the shared mock function
 vi.mock('@/lib/auth', () => ({
-  auth: authMock,
+  auth: mockAuth,
   handlers: {
     GET: vi.fn(),
     POST: vi.fn(),
@@ -19,3 +18,5 @@ vi.mock('@/lib/auth', () => ({
   signIn: vi.fn(),
   signOut: vi.fn(),
 }))
+
+export { mockAuth }

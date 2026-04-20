@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createMockSession, authMock } from '@/tests/mocks/auth'
+import type { Session } from 'next-auth'
 
 const prismaMock = {
   forumTopicVote: {
@@ -12,15 +12,27 @@ vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }))
 
+const mockAuth = vi.fn()
+
+vi.mock('@/lib/auth', () => ({
+  auth: mockAuth,
+}))
+
+function createMockSession(userId: string, role = 'USER'): Session {
+  return {
+    user: { id: userId, name: 'Test', email: 'test@test.com', role },
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }
+}
+
 describe('POST /api/forum/topics/vote', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
   })
 
   it('should create upvote', async () => {
-    const session = createMockSession({ id: 'user-regular-id', email: 'user@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     const mockVote = {
       id: 'vote-new',
@@ -63,8 +75,7 @@ describe('POST /api/forum/topics/vote', () => {
   })
 
   it('should create downvote', async () => {
-    const session = createMockSession({ id: 'user-author-id', email: 'author@test.com', name: 'Author' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-author-id'))
 
     const mockVote = {
       id: 'vote-new',
@@ -92,8 +103,7 @@ describe('POST /api/forum/topics/vote', () => {
   })
 
   it('should remove vote when value is 0', async () => {
-    const session = createMockSession({ id: 'user-regular-id', email: 'user@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     prismaMock.forumTopicVote.deleteMany.mockResolvedValue({ count: 1 })
 
@@ -122,7 +132,7 @@ describe('POST /api/forum/topics/vote', () => {
   })
 
   it('should reject unauthenticated request', async () => {
-    authMock.mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
 
     const request = new Request('http://localhost/api/forum/topics/vote', {
       method: 'POST',
@@ -140,8 +150,7 @@ describe('POST /api/forum/topics/vote', () => {
   })
 
   it('should reject invalid vote value', async () => {
-    const session = createMockSession({ id: 'user-id', email: 'test@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-id'))
 
     const request = new Request('http://localhost/api/forum/topics/vote', {
       method: 'POST',
@@ -159,8 +168,7 @@ describe('POST /api/forum/topics/vote', () => {
   })
 
   it('should reject missing topicId', async () => {
-    const session = createMockSession({ id: 'user-id', email: 'test@test.com', name: 'User' })
-    authMock.mockResolvedValue(session)
+    mockAuth.mockResolvedValue(createMockSession('user-id'))
 
     const request = new Request('http://localhost/api/forum/topics/vote', {
       method: 'POST',
