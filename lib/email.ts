@@ -1,11 +1,10 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const FROM = process.env.EMAIL_FROM || 'noreply@ranobehub.com'
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
 export async function sendVerificationEmail(email: string, token: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`
 
   await resend.emails.send({
@@ -29,6 +28,7 @@ export async function sendVerificationEmail(email: string, token: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const resetUrl = `${BASE_URL}/reset-password?token=${token}`
 
   await resend.emails.send({
