@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { User, BookOpen, MessageCircle, Users, Star } from 'lucide-react'
+import { User, BookOpen, MessageCircle, Users, Star, PenTool } from 'lucide-react'
 
 interface UserPageProps {
   params: { id: string }
@@ -60,6 +60,17 @@ export default async function UserPage({ params }: UserPageProps) {
         take: 10,
         select: { id: true, slug: true, title: true, coverUrl: true },
       },
+      novels: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          coverUrl: true,
+          type: true,
+          moderationStatus: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   })
 
@@ -68,6 +79,12 @@ export default async function UserPage({ params }: UserPageProps) {
   }
 
   const isOwn = session?.user?.id === user.id
+  const isModerator = ['OWNER', 'ADMIN', 'MODERATOR'].includes(session?.user?.role || '')
+
+  // Filter novels - only show pending to author or moderators
+  const visibleNovels = user.novels.filter(novel =>
+    novel.moderationStatus !== 'PENDING' || isOwn || isModerator
+  )
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -142,6 +159,47 @@ export default async function UserPage({ params }: UserPageProps) {
                     <Badge variant="outline" className="hover:bg-muted">
                       {membership.team.name}
                     </Badge>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {visibleNovels.length > 0 && (
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
+                <PenTool className="h-5 w-5 text-purple-500" />
+                Авторські роботи
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {visibleNovels.map((novel) => (
+                  <Link key={novel.id} href={`/novel/${novel.slug}`}>
+                    <Card className="overflow-hidden transition-shadow hover:shadow-lg relative">
+                      {novel.moderationStatus === 'PENDING' && (
+                        <Badge variant="outline" className="absolute top-2 right-2 bg-yellow-500/20 text-yellow-600 border-yellow-500">
+                          На модерації
+                        </Badge>
+                      )}
+                      <div className="aspect-[3/4] bg-muted">
+                        {novel.coverUrl ? (
+                          <img
+                            src={novel.coverUrl}
+                            alt={novel.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <BookOpen className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-2">
+                        <p className="line-clamp-2 text-sm font-medium">{novel.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {novel.type === 'ORIGINAL' ? 'Авторський' : novel.type}
+                        </p>
+                      </CardContent>
+                    </Card>
                   </Link>
                 ))}
               </div>

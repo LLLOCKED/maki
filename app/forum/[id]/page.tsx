@@ -34,7 +34,12 @@ async function getTopic(id: string) {
       novel: {
         select: { id: true, title: true, slug: true },
       },
-      votes: true,
+      votes: {
+        select: {
+          value: true,
+          userId: true,
+        },
+      },
       comments: {
         where: { parentId: null },
         include: {

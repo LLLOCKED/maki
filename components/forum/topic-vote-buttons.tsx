@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TopicVote {
   value: number
+  userId: string
 }
 
 interface TopicVoteButtonsProps {
@@ -17,19 +18,26 @@ interface TopicVoteButtonsProps {
 
 export default function TopicVoteButtons({ topicId, votes, currentUserId }: TopicVoteButtonsProps) {
   const router = useRouter()
-  const [votesState, setVotes] = useState(votes)
+  const [localVotes, setLocalVotes] = useState<TopicVote[]>(votes)
   const [isVoting, setIsVoting] = useState(false)
 
-  const score = votesState.reduce((sum, v) => sum + v.value, 0)
-  const userVote = votesState.length > 0 ? votesState[votesState.length - 1].value : 0
+  // Sync when prop changes
+  useEffect(() => {
+    setLocalVotes(votes)
+  }, [votes])
+
+  const score = localVotes.reduce((sum, v) => sum + v.value, 0)
+  const myVote = localVotes.find(v => v.userId === currentUserId)?.value || 0
 
   const handleVote = async (value: number) => {
     if (!currentUserId || isVoting) return
 
+    // Calculate new vote value: toggle if same, otherwise switch
+    const previousVote = localVotes.find(v => v.userId === currentUserId)?.value || 0
+    const newValue = previousVote === value ? 0 : value
+
     setIsVoting(true)
     try {
-      const newValue = userVote === value ? 0 : value
-
       const res = await fetch('/api/forum/topics/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,11 +45,22 @@ export default function TopicVoteButtons({ topicId, votes, currentUserId }: Topi
       })
 
       if (res.ok) {
+        // Optimistic update based on newValue
+        let updatedVotes: TopicVote[]
         if (newValue === 0) {
-          setVotes([])
+          // Remove my vote
+          updatedVotes = localVotes.filter(v => v.userId !== currentUserId)
+        } else if (previousVote !== 0) {
+          // Change my existing vote
+          updatedVotes = localVotes.map(v =>
+            v.userId === currentUserId ? { ...v, value: newValue } : v
+          )
         } else {
-          setVotes([{ value: newValue }])
+          // Add new vote
+          updatedVotes = [...localVotes, { value: newValue, userId: currentUserId }]
         }
+        setLocalVotes(updatedVotes)
+        // Refresh to get server state
         router.refresh()
       }
     } finally {
@@ -56,7 +75,7 @@ export default function TopicVoteButtons({ topicId, votes, currentUserId }: Topi
         disabled={!currentUserId || isVoting}
         className={cn(
           'flex items-center gap-1 rounded-md px-3 py-1.5 transition-colors',
-          userVote === 1
+          myVote === 1
             ? 'bg-orange-500/20 text-orange-500'
             : 'bg-muted text-muted-foreground hover:text-orange-500',
           !currentUserId && 'opacity-50 cursor-not-allowed'
@@ -71,7 +90,7 @@ export default function TopicVoteButtons({ topicId, votes, currentUserId }: Topi
         disabled={!currentUserId || isVoting}
         className={cn(
           'flex items-center gap-1 rounded-md px-3 py-1.5 transition-colors',
-          userVote === -1
+          myVote === -1
             ? 'bg-blue-500/20 text-blue-500'
             : 'bg-muted text-muted-foreground hover:text-blue-500',
           !currentUserId && 'opacity-50 cursor-not-allowed'

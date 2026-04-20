@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
-import HorizontalNovelCard from '@/components/horizontal-novel-card'
+import CatalogCard from '@/components/catalog-card'
 import CatalogFilters from '@/components/catalog-filters'
 import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
 
@@ -75,18 +75,6 @@ async function getNovels(searchParams: SearchParams) {
         include: {
           genres: { include: { genre: true } },
           authors: { include: { author: true } },
-          chapters: {
-            where: { moderationStatus: 'APPROVED' },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              title: true,
-              number: true,
-              createdAt: true,
-              teamId: true,
-            },
-          },
           _count: { select: { comments: true } },
         },
       })
@@ -108,18 +96,6 @@ async function getNovels(searchParams: SearchParams) {
         include: {
           genres: { include: { genre: true } },
           authors: { include: { author: true } },
-          chapters: {
-            where: { moderationStatus: 'APPROVED' },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              title: true,
-              number: true,
-              createdAt: true,
-              teamId: true,
-            },
-          },
           _count: { select: { comments: true } },
         },
         orderBy,
@@ -171,7 +147,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {novels.map((novel) => (
-              <HorizontalNovelCard
+              <CatalogCard
                 key={novel.id}
                 novel={{
                   ...novel,

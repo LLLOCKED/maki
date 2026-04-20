@@ -3,7 +3,9 @@ import SmallNovelCard from '@/components/small-novel-card'
 import PosterNovelCard from '@/components/poster-novel-card'
 import ForumTopicCard from '@/components/forum/forum-topic-card'
 import NovelsList from '@/components/novels-list'
-import { BookOpen, Flame, MessageCircle, TrendingUp } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { BookOpen, Flame, MessageCircle, TrendingUp, Tag } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -120,7 +122,7 @@ async function getForumTopics() {
         select: { id: true, title: true, slug: true },
       },
       votes: {
-        select: { value: true },
+        select: { value: true, userId: true },
       },
       _count: {
         select: { comments: true },
@@ -134,14 +136,27 @@ async function getTotalNovelsCount() {
   return prisma.novel.count({ where: { moderationStatus: 'APPROVED' } })
 }
 
+async function getPopularTags() {
+  return prisma.tag.findMany({
+    include: {
+      _count: {
+        select: { novels: true },
+      },
+    },
+    orderBy: { novels: { _count: 'desc' } },
+    take: 20,
+  })
+}
+
 export default async function HomePage() {
-  const [popularNovels, discussedNovels, latestForPosters, topics, totalNovels, initialNovels] = await Promise.all([
+  const [popularNovels, discussedNovels, latestForPosters, topics, totalNovels, initialNovels, popularTags] = await Promise.all([
     getPopularNovels(),
     getDiscussedNovels(),
     getLatestNovels(),
     getForumTopics(),
     getTotalNovelsCount(),
     getNovels(0, 8),
+    getPopularTags(),
   ])
 
   // Top 5 by vote score
@@ -286,7 +301,7 @@ export default async function HomePage() {
               </div>
 
               {/* Most Discussed Topics */}
-              <div>
+              <div className="mb-6">
                 <div className="mb-3 flex items-center gap-2">
                   <MessageCircle className="h-5 w-5 text-green-500" />
                   <h2 className="text-lg font-semibold">Обговорювані теми</h2>
@@ -297,6 +312,26 @@ export default async function HomePage() {
                       key={topic.id}
                       topic={topic as any}
                     />
+                  ))}
+                </div>
+              </div>
+
+              {/* Popular Tags */}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-purple-500" />
+                  <h2 className="text-lg font-semibold">Теги</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {popularTags.map((tag) => (
+                    <Link key={tag.id} href={`/catalog?tags=${tag.id}`}>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-accent">
+                        {tag.name}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          {tag._count.novels}
+                        </span>
+                      </Badge>
+                    </Link>
                   ))}
                 </div>
               </div>

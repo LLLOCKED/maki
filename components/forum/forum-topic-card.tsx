@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 
 interface TopicVote {
   value: number
+  userId: string
 }
 
 interface Topic {
@@ -61,25 +62,22 @@ function getVoteScore(votes: TopicVote[]): number {
   return votes.reduce((sum, v) => sum + v.value, 0)
 }
 
-function getUserVote(votes: TopicVote[], userId?: string): number {
-  return 0
-}
-
 export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardProps) {
   const router = useRouter()
   const [votes, setVotes] = useState(topic.votes)
   const [isVoting, setIsVoting] = useState(false)
 
   const score = getVoteScore(votes)
-  const userVote = currentUserId ? votes.find(v => v.value === 1 || v.value === -1)?.value || 0 : 0
+  const userVote = currentUserId ? votes.find(v => v.userId === currentUserId)?.value || 0 : 0
 
   const handleVote = async (value: number) => {
     if (!currentUserId || isVoting) return
 
+    const previousVote = votes.find(v => v.userId === currentUserId)?.value || 0
+    const newValue = previousVote === value ? 0 : value
+
     setIsVoting(true)
     try {
-      const newValue = userVote === value ? 0 : value
-
       const res = await fetch('/api/forum/topics/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,16 +87,13 @@ export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardP
       if (res.ok) {
         // Update local state
         if (newValue === 0) {
-          setVotes(votes.filter(v => v.value !== userVote))
+          setVotes(votes.filter(v => v.userId !== currentUserId))
+        } else if (previousVote !== 0) {
+          setVotes(votes.map(v =>
+            v.userId === currentUserId ? { ...v, value: newValue } : v
+          ))
         } else {
-          const existingVoteIndex = votes.findIndex(v => v.value === userVote)
-          if (existingVoteIndex >= 0) {
-            const newVotes = [...votes]
-            newVotes[existingVoteIndex] = { value: newValue }
-            setVotes(newVotes)
-          } else {
-            setVotes([...votes, { value: newValue }])
-          }
+          setVotes([...votes, { value: newValue, userId: currentUserId! }])
         }
         router.refresh()
       }

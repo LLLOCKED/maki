@@ -48,10 +48,12 @@ const translationStatusLabels: Record<string, string> = {
   HIATUS: 'На паузі',
 }
 
-async function getNovel(slug: string, isAdmin: boolean = false) {
-  const where = isAdmin
-    ? { slug }
-    : { slug, moderationStatus: 'APPROVED' }
+async function getNovel(slug: string, isAdmin: boolean = false, authorId?: string | null) {
+  // Build where clause - admins see all, authors see their own pending
+  let where: any = { slug }
+  if (!isAdmin && !authorId) {
+    where.moderationStatus = 'APPROVED'
+  }
 
   const novel = await prisma.novel.findUnique({
     where,
@@ -95,7 +97,6 @@ async function getNovel(slug: string, isAdmin: boolean = false) {
           },
         },
       },
-      ratings: true,
       forumTopics: {
         where: { novelId: { not: null } },
         include: {
@@ -116,8 +117,15 @@ async function getNovel(slug: string, isAdmin: boolean = false) {
   return novel
 }
 
-export async function generateMetadata({ params }: NovelPageProps) {
-  const novel = await getNovel(params.slug)
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  // Check if novel exists (authors can see their own pending novels)
+  const checkNovel = await prisma.novel.findUnique({
+    where: { slug: params.slug },
+    select: { id: true, authorId: true },
+  })
+  if (!checkNovel) return { title: 'Не знайдено' }
+
+  const novel = await getNovel(params.slug, false, null)
   if (!novel) return { title: 'Не знайдено' }
   return {
     title: `${novel.title} — RanobeHub`,
@@ -130,7 +138,23 @@ export default async function NovelPage({ params }: NovelPageProps) {
   const sessionWithRole = session as { user?: { id?: string; role?: string } } | null
   const userRole = sessionWithRole?.user?.role
   const isAdmin = ['OWNER', 'ADMIN', 'MODERATOR'].includes(userRole || '')
-  const novel = await getNovel(params.slug, isAdmin)
+  const userId = session?.user?.id
+
+  // First check if novel exists and get its authorId
+  const novelMeta = await prisma.novel.findUnique({
+    where: { slug: params.slug },
+    select: { authorId: true, type: true },
+  })
+
+  if (!novelMeta) {
+    notFound()
+  }
+
+  // Authors can see their own pending novels, admins see all
+  const isAuthor = novelMeta.type === 'ORIGINAL' && userId === novelMeta.authorId
+  const canViewPending = isAdmin || isAuthor
+
+  const novel = await getNovel(params.slug, false, canViewPending ? userId : null)
 
   if (!novel) {
     notFound()
@@ -148,6 +172,12 @@ export default async function NovelPage({ params }: NovelPageProps) {
       },
     })
   }
+
+  // Get author info for ORIGINAL novels
+  const author = novelMeta?.authorId ? await prisma.user.findUnique({
+    where: { id: novelMeta.authorId },
+    select: { id: true, name: true, image: true },
+  }) : null
 
   const firstChapter = novel.chapters[0]
 
@@ -222,6 +252,16 @@ export default async function NovelPage({ params }: NovelPageProps) {
                       <span key={author.id}>{author.name}</span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Author link for ORIGINAL novels */}
+              {author && novel.type === 'ORIGINAL' && (
+                <div className="flex items-start gap-2 text-sm">
+                  <User className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <Link href={`/user/${author.id}`} className="hover:text-primary">
+                    Автор: {author.name}
+                  </Link>
                 </div>
               )}
 
@@ -346,7 +386,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
           {/* Chapters by Team */}
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold">Розділи</h2>
-            {session && (
+            {session && (isAdmin || (novelMeta?.type === 'ORIGINAL' ? isAuthor : true)) && (
               <Link href={`/admin/chapters/new?novel=${novel.slug}`}>
                 <Button size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />

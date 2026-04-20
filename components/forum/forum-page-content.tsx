@@ -29,6 +29,7 @@ interface Category {
 
 interface TopicVote {
   value: number
+  userId: string
 }
 
 interface Topic {

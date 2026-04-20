@@ -5,6 +5,7 @@ import ForumTopicCard from './forum-topic-card'
 
 interface TopicVote {
   value: number
+  userId: string
 }
 
 interface Topic {

@@ -13,9 +13,10 @@ export async function GET(request: Request) {
     const [novels, teams, users] = await Promise.all([
       prisma.novel.findMany({
         where: {
+          moderationStatus: 'APPROVED',
           OR: [
-            { title: { contains: query } },
-            { originalName: { contains: query } },
+            { title: { contains: query, mode: 'insensitive' } },
+            { originalName: { contains: query, mode: 'insensitive' } },
           ],
         },
         take: 20,
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
       }),
       prisma.team.findMany({
         where: {
-          name: { contains: query },
+          name: { contains: query, mode: 'insensitive' },
         },
         take: 10,
         select: {
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
       }),
       prisma.user.findMany({
         where: {
-          name: { contains: query },
+          name: { contains: query, mode: 'insensitive' },
         },
         take: 10,
         select: {
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
       ...users.map((u) => ({
         type: 'user' as const,
         id: u.id,
-        title: u.name || 'Пользователь',
+        title: u.name || 'Пользовазовач',
       })),
     ]
 

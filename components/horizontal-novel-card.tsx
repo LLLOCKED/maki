@@ -32,7 +32,9 @@ function formatDate(date: Date): string {
 
 export default function HorizontalNovelCard({ novel }: HorizontalNovelCardProps) {
   const latestChapter = novel.chapters?.[0]
-  const cardHref = `/novel/${novel.slug}`
+  const cardHref = latestChapter
+    ? `/read/${novel.slug}/${latestChapter.number}?chapter=${latestChapter.id}`
+    : `/novel/${novel.slug}`
 
   const authorNames = novel.authors?.map((a) => a.author.name).join(', ') || ''
 

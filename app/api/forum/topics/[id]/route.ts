@@ -15,6 +15,12 @@ export async function GET(
         category: {
           select: { id: true, name: true, slug: true, color: true },
         },
+        novel: {
+          select: { id: true, title: true, slug: true },
+        },
+        votes: {
+          select: { value: true, userId: true },
+        },
         comments: {
           include: {
             user: {

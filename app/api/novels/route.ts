@@ -181,6 +181,7 @@ export async function POST(request: Request) {
         translationStatus: translationStatus || 'TRANSLATING',
         moderationStatus: 'PENDING',
         releaseYear: releaseYear ? parseInt(releaseYear) : null,
+        authorId: (type || 'ORIGINAL') === 'ORIGINAL' ? session.user.id : null,
         genres: genreIds?.length
           ? {
               create: genreIds.map((genreId: string) => ({
@@ -191,7 +192,7 @@ export async function POST(request: Request) {
         tags: tagIds?.length
           ? {
               create: tagIds.map((tagId: string) => ({
-                tag: { connect: { tagId } },
+                tag: { connect: { id: tagId } },
               })),
             }
           : undefined,

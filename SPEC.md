@@ -28,8 +28,8 @@
 - **User** — id, name, email, image, role, createdAt, accounts, favorites, teamMemberships
 - **Account** — NextAuth OAuth accounts
 - **Session** — NextAuth sessions
-- **Novel** — id, title, originalName, slug, description, coverUrl, type, status, translationStatus, releaseYear, averageRating, viewCount, moderationStatus
-- **Chapter** — id, title, number, content, teamId, moderationStatus
+- **Novel** — id, title, originalName, slug, description, coverUrl, type, status, translationStatus, releaseYear, averageRating, viewCount, moderationStatus, authorId
+- **Chapter** — id, title, number, content, novelId, teamId, moderationStatus
 - **Genre** — id, name, slug
 - **Tag** — id, name, slug
 - **Author** — id, name
@@ -42,6 +42,10 @@
 - **ForumCategory** — forum categories
 - **ForumTopic** — forum topics with votes
 - **ForumComment** — forum comments with nesting
+
+### Novel Types
+- **ORIGINAL** — Авторський тайтл. Створюється користувачем, який стає автором. Тільки він може додавати розділи. Не використовує команди чи переклад.
+- **JAPAN/KOREA/CHINA/ENGLISH** — Перекладений тайтл. Розділи додаються командою перекладачів. Потребує прив'язки до команди.
 
 ### Moderation
 - Novel, Chapter have `moderationStatus` (PENDING, APPROVED, REJECTED)
@@ -111,8 +115,8 @@
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/novels` | List novels with filters |
-| POST | `/api/novels` | Create novel |
-| GET | `/api/chapters` | Create chapter |
+| POST | `/api/novels` | Create novel (sets authorId for ORIGINAL type) |
+| POST | `/api/chapters` | Create chapter (author only for ORIGINAL, team member for translations) |
 | GET | `/api/moderation` | Get pending counts |
 | PATCH | `/api/moderation/novels/[id]` | Approve/reject novel |
 | PATCH | `/api/moderation/chapters/[id]` | Approve/reject chapter |

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
           select: { id: true, title: true, slug: true },
         },
         votes: {
-          select: { value: true },
+          select: { value: true, userId: true },
         },
         _count: {
           select: { comments: true },
