@@ -1,6 +1,10 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
+import remarkGfm from 'remark-gfm'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { Badge } from '@/components/ui/badge'
@@ -13,10 +17,13 @@ import CommentSection from '@/components/comment-section'
 import ViewTracker from '@/components/view-tracker'
 import Rating from '@/components/rating'
 import BookmarkButton from '@/components/bookmark-button'
+import FavoriteButton from '@/components/favorite-button'
+import ResetModeration from '@/components/reset-moderation-button'
 import { NovelJsonLd } from '@/components/json-ld'
+import ExplicitContentGate from '@/components/explicit-content-gate'
 
 interface NovelPageProps {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 function formatDate(date: Date): string {
@@ -86,6 +93,7 @@ async function getNovel(slug: string, isAdmin: boolean = false, authorId?: strin
           id: true,
           title: true,
           number: true,
+          volume: true,
           createdAt: true,
           teamId: true,
           moderationStatus: true,
@@ -93,6 +101,7 @@ async function getNovel(slug: string, isAdmin: boolean = false, authorId?: strin
             select: {
               id: true,
               name: true,
+              slug: true,
             },
           },
         },
@@ -117,23 +126,25 @@ async function getNovel(slug: string, isAdmin: boolean = false, authorId?: strin
   return novel
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: NovelPageProps) {
+  const { slug } = await params
   // Check if novel exists (authors can see their own pending novels)
   const checkNovel = await prisma.novel.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: { id: true, authorId: true },
   })
   if (!checkNovel) return { title: 'Не знайдено' }
 
-  const novel = await getNovel(params.slug, false, null)
+  const novel = await getNovel(slug, false, null)
   if (!novel) return { title: 'Не знайдено' }
   return {
-    title: `${novel.title} — RanobeHub`,
+    title: `${novel.title} — honni`,
     description: novel.description,
   }
 }
 
 export default async function NovelPage({ params }: NovelPageProps) {
+  const { slug } = await params
   const session = await auth()
   const sessionWithRole = session as { user?: { id?: string; role?: string } } | null
   const userRole = sessionWithRole?.user?.role
@@ -142,7 +153,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
 
   // First check if novel exists and get its authorId
   const novelMeta = await prisma.novel.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: { authorId: true, type: true },
   })
 
@@ -154,23 +165,69 @@ export default async function NovelPage({ params }: NovelPageProps) {
   const isAuthor = novelMeta.type === 'ORIGINAL' && userId === novelMeta.authorId
   const canViewPending = isAdmin || isAuthor
 
-  const novel = await getNovel(params.slug, false, canViewPending ? userId : null)
+  const novel = await getNovel(slug, false, canViewPending ? userId : null)
 
   if (!novel) {
     notFound()
   }
 
-  // Get user's bookmark for this novel
+  // Get user's bookmark and favorite for this novel
   let userBookmark = null
+  let userRating = null
+  let userFavorite = false
   if (session?.user?.id) {
-    userBookmark = await prisma.bookmark.findUnique({
+    const [bookmark, rating, favorite] = await Promise.all([
+      prisma.bookmark.findUnique({
+        where: {
+          userId_novelId: {
+            userId: session.user.id,
+            novelId: novel.id,
+          },
+        },
+      }),
+      prisma.rating.findUnique({
+        where: {
+          userId_novelId: {
+            userId: session.user.id,
+            novelId: novel.id,
+          },
+        },
+      }),
+      prisma.favorite.findUnique({
+        where: {
+          userId_novelId: {
+            userId: session.user.id,
+            novelId: novel.id,
+          },
+        },
+      }),
+    ])
+    userBookmark = bookmark
+    userRating = rating?.value || null
+    userFavorite = !!favorite
+  }
+
+  // Check if user is a team member for any team with chapters on this novel
+  let userTeamSlugs: string[] = []
+  if (session?.user?.id) {
+    const teamMemberships = await prisma.teamMembership.findMany({
       where: {
-        userId_novelId: {
-          userId: session.user.id,
-          novelId: novel.id,
+        userId: session.user.id,
+        team: {
+          chapters: {
+            some: {
+              novelId: novel.id,
+            },
+          },
+        },
+      },
+      include: {
+        team: {
+          select: { slug: true },
         },
       },
     })
+    userTeamSlugs = teamMemberships.map(m => m.team.slug)
   }
 
   // Get author info for ORIGINAL novels
@@ -192,9 +249,14 @@ export default async function NovelPage({ params }: NovelPageProps) {
         averageRating={novel.averageRating}
         genres={novel.genres.map(({ genre }) => genre.name)}
       />
+      <ExplicitContentGate
+        novelId={novel.id}
+        novelTitle={novel.title}
+        isExplicit={novel.isExplicit}
+      />
       <div className="container mx-auto px-4 py-8">
         <ViewTracker slug={novel.slug} />
-      <div className="grid gap-8 md:grid-cols-[300px_1fr]">
+      <div className="grid gap-8 grid-cols-1 md:grid-cols-[300px_1fr]">
         {/* Cover */}
         <div>
           <div className="sticky top-4">
@@ -205,12 +267,15 @@ export default async function NovelPage({ params }: NovelPageProps) {
                     src={novel.coverUrl}
                     alt={novel.title}
                     className="h-full w-full object-cover"
+                    loading="eager"
                   />
                 ) : (
                   <Image
                     src={novel.coverUrl}
                     alt={novel.title}
                     fill
+                    sizes="(min-width: 1024px) 400px, (min-width: 768px) 300px, 200px"
+                    loading="eager"
                     className="object-cover"
                   />
                 )
@@ -249,7 +314,9 @@ export default async function NovelPage({ params }: NovelPageProps) {
                   <User className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   <div className="flex flex-wrap gap-1">
                   {novel.authors.map(({ author }) => (
-                      <span key={author.id}>{author.name}</span>
+                      <Link key={author.id} href={`/catalog?authors=${author.slug}`} className="hover:text-primary">
+                        {author.name}
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -265,13 +332,30 @@ export default async function NovelPage({ params }: NovelPageProps) {
                 </div>
               )}
 
+              {/* Donation link for ORIGINAL novels */}
+              {novel.type === 'ORIGINAL' && novel.donationUrl && (
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-muted-foreground">Підтримати:</span>
+                  <a
+                    href={novel.donationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Донат
+                  </a>
+                </div>
+              )}
+
               {/* Publishers */}
               {novel.publishers.length > 0 && (
                 <div className="flex items-start gap-2 text-sm">
                   <Building2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   <div className="flex flex-wrap gap-1">
                     {novel.publishers.map(({ publisher }) => (
-                      <span key={publisher.id}>{publisher.name}</span>
+                      <Link key={publisher.id} href={`/catalog?publishers=${publisher.slug}`} className="hover:text-primary">
+                        {publisher.name}
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -311,11 +395,48 @@ export default async function NovelPage({ params }: NovelPageProps) {
         {/* Info */}
         <div>
           <div className="mb-6">
-            <h1 className="text-4xl font-bold">{novel.title}</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-4xl font-bold">{novel.title}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                {['OWNER', 'ADMIN'].includes(userRole || '') && (
+                  <>
+                    <Link href={`/admin/novels/${novel.slug}/edit`}>
+                      <Button size="sm" variant="outline">Редагувати</Button>
+                    </Link>
+                    <ResetModeration novelSlug={novel.slug} novelTitle={novel.title} />
+                  </>
+                )}
+              </div>
+            </div>
             {novel.originalName && (
               <p className="mt-1 text-lg text-muted-foreground italic">
                 {novel.originalName}
               </p>
+            )}
+
+            {/* Content Warnings */}
+            {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {novel.contentWarnings.map((warning: string) => {
+                  const warningLabels: Record<string, { label: string; color: string }> = {
+                    violence: { label: 'Насилля', color: 'bg-red-500' },
+                    gore: { label: 'Кров\'яні сцени', color: 'bg-red-700' },
+                    sexual: { label: 'Сексуальний контент', color: 'bg-purple-500' },
+                    psychological: { label: 'Психологічний тиск', color: 'bg-yellow-500' },
+                    'self-harm': { label: 'Самогубство', color: 'bg-orange-500' },
+                  }
+                  const info = warningLabels[warning] || { label: warning, color: 'bg-gray-500' }
+                  return (
+                    <span
+                      key={warning}
+                      className={`px-2 py-1 text-xs text-white rounded ${info.color}`}
+                      title={`Попередження: ${info.label}`}
+                    >
+                      ⚠️ {info.label}
+                    </span>
+                  )
+                })}
+              </div>
             )}
           </div>
 
@@ -323,10 +444,13 @@ export default async function NovelPage({ params }: NovelPageProps) {
           <div className="mb-4 flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-              <Rating novelId={novel.id} initialRating={novel.averageRating} />
+              <Rating novelId={novel.id} initialRating={novel.averageRating} userRating={userRating ?? undefined} />
             </div>
             {session && (
-              <BookmarkButton novelId={novel.id} initialStatus={userBookmark?.status} />
+              <>
+                <BookmarkButton novelId={novel.id} initialStatus={userBookmark?.status} />
+                <FavoriteButton novelId={novel.id} initialIsFavorited={userFavorite} />
+              </>
             )}
           </div>
 
@@ -334,33 +458,43 @@ export default async function NovelPage({ params }: NovelPageProps) {
           {novel.genres.length > 0 && (
             <div className="mb-6 flex flex-wrap gap-2">
               {novel.genres.map(({ genre }) => (
-                <Badge key={genre.slug} variant="secondary">
-                  {genre.name}
-                </Badge>
+                <Link key={genre.slug} href={`/catalog?genres=${genre.slug}`}>
+                  <Badge variant="secondary" className="cursor-pointer hover:opacity-80">
+                    {genre.name}
+                  </Badge>
+                </Link>
               ))}
             </div>
           )}
 
-          <Card className="mb-8 p-6">
-            <h2 className="mb-2 font-semibold">Опис</h2>
-            <p className="text-muted-foreground">{novel.description}</p>
+          <Card className="mb-8 p-4 sm:p-6 relative overflow-hidden mx-0">
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.1]"
+              style={{ backgroundImage: "url('/static/images/back.svg')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.9)' }}
+            />
+            <h2 className="mb-2 font-semibold relative z-10">Опис</h2>
+            <div className="text-muted-foreground relative z-10 prose prose-base max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeSanitize]}>{novel.description}</ReactMarkdown>
+            </div>
           </Card>
 
           {/* Tags */}
           {novel.tags.length > 0 && (
             <div className="mb-6 flex flex-wrap gap-2">
               {novel.tags.map(({ tag }) => (
-                <Badge key={tag.slug} variant="outline" className="flex items-center gap-1">
-                  <Tag className="h-3 w-3" />
-                  {tag.name}
-                </Badge>
+                <Link key={tag.slug} href={`/catalog?tags=${tag.slug}`}>
+                  <Badge variant="outline" className="flex items-center gap-1 cursor-pointer hover:bg-muted">
+                    <Tag className="h-3 w-3" />
+                    {tag.name}
+                  </Badge>
+                </Link>
               ))}
             </div>
           )}
 
           {/* Teams */}
           {(() => {
-            const teamsMap = new Map<string, { id: string; name: string }>()
+            const teamsMap = new Map<string, { id: string; name: string; slug: string }>()
             for (const chapter of novel.chapters) {
               if (chapter.teamId && chapter.team && !teamsMap.has(chapter.teamId)) {
                 teamsMap.set(chapter.teamId, chapter.team)
@@ -372,7 +506,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
               <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Переклад:</span>
                 {teams.map((team) => (
-                  <Link key={team.id} href={`/team/${team.id}`}>
+                  <Link key={team.id} href={`/team/${team.slug}`}>
                     <Badge variant="outline" className="hover:bg-muted cursor-pointer">
                       <Users className="mr-1 h-3 w-3" />
                       {team.name}
@@ -395,7 +529,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
               </Link>
             )}
           </div>
-          <ChapterTabs novelSlug={novel.slug} chapters={novel.chapters as any} isAdmin={isAdmin} />
+          <ChapterTabs novelSlug={novel.slug} chapters={novel.chapters as any} isAdmin={isAdmin} userTeamSlugs={userTeamSlugs} />
 
           {/* Comments */}
           <CommentSection novelId={novel.id} />

@@ -1,10 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
 }
 
 model Account {
@@ -42,11 +42,16 @@ model User {
   image         String?
   passwordHash  String?
   role          String   @default("USER") // OWNER, ADMIN, MODERATOR, USER
+  lastSeen      DateTime?
+  isBanned      Boolean   @default(false)
+  banReason     String?
+  bannedAt      DateTime?
+  bannedBy      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
-  favorites     Novel[]   @relation("UserFavorites")
+  favorites     Novel[]       @relation("UserFavorites")
   comments      Comment[]
   teamMemberships TeamMembership[]
   ratings       Rating[]
@@ -56,6 +61,12 @@ model User {
   forumComments ForumComment[]
   forumTopicVotes ForumTopicVote[]
   novels      Novel[]     @relation("UserNovels")
+  warnings     UserWarning[] @relation("UserWarnings")
+  activityLogs AdminActivityLog[]
+  issuedWarnings UserWarning[] @relation("WarningIssuer")
+  novelViews    NovelView[]
+  notifications Notification[]
+  userFavorites Favorite[]
 }
 
 model Collection {
@@ -67,6 +78,37 @@ model Collection {
 
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   novels  Novel[]   @relation("CollectionNovels")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // 'NEW_CHAPTER'
+  novelId   String
+  chapterId String
+  teamId    String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel   Novel   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  team    Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  novelId   String
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, novelId])
 }
 
 model Tag {
@@ -100,12 +142,13 @@ model Rating {
 }
 
 model Bookmark {
-  id        String   @id @default(cuid())
-  userId    String
-  novelId   String
-  status    String   // reading, planned, completed, dropped
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId           String
+  novelId          String
+  status           String   // reading, planned, completed, dropped
+  readingPosition  Int?     // chapter number where user stopped reading
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   novel Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
@@ -188,22 +231,30 @@ model ForumComment {
 model Publisher {
   id      String    @id @default(cuid())
   name    String    @unique
+  slug    String    @unique
   novels  NovelPublisher[]
 }
 
 model Author {
   id      String    @id @default(cuid())
   name    String    @unique
+  slug    String    @unique
   novels  NovelAuthor[]
 }
 
 model Team {
   id          String   @id @default(cuid())
   name        String   @unique
+  slug        String   @unique
   description String?
+  avatarUrl   String?
+  bannerUrl   String?
   createdAt   DateTime @default(now())
   members     TeamMembership[]
   chapters    Chapter[]
+  notifications Notification[]
+
+  @@index([slug])
 }
 
 model TeamMembership {
@@ -233,6 +284,10 @@ model Novel {
   averageRating    Float   @default(0)
   viewCount        Int     @default(0)
   moderationStatus String  @default("PENDING") // PENDING, APPROVED, REJECTED
+  sourceUrl        String?
+  isExplicit       Boolean  @default(false)
+  contentWarnings String[] @default([]) // ['violence', 'gore', 'sexual', 'psychological', 'self-harm']
+  donationUrl      String?  // посилання на донати для ORIGINAL тайтлів
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   authorId         String?  // For ORIGINAL type novels - the author user
@@ -248,7 +303,10 @@ model Novel {
   bookmarks    Bookmark[]
   inCollections Collection[]  @relation("CollectionNovels")
   forumTopics   ForumTopic[]
+  views        NovelView[]
   author       User?     @relation("UserNovels", fields: [authorId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+  favorites    Favorite[]
 
   @@index([slug])
   @@index([authorId])
@@ -278,6 +336,7 @@ model Chapter {
   id        String   @id @default(cuid())
   title     String
   number    Int
+  volume    Int?     // том (необов'язково)
   content   String
   novelId   String
   teamId    String?
@@ -288,9 +347,11 @@ model Chapter {
   novel    Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
   team     Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
   comments Comment[]
+  notifications Notification[]
 
   @@index([novelId])
   @@index([teamId])
+  @@index([volume])
 }
 
 model Genre {
@@ -329,4 +390,56 @@ model Comment {
   @@index([novelId])
   @@index([chapterId])
   @@index([parentId])
+}
+
+model UserWarning {
+  id        String   @id @default(cuid())
+  userId    String
+  reason    String
+  issuedBy  String   // admin mod userId
+  createdAt DateTime @default(now())
+
+  user   User @relation("UserWarnings", fields: [userId], references: [id], onDelete: Cascade)
+  issuer User @relation("WarningIssuer", fields: [issuedBy], references: [id])
+}
+
+model NovelView {
+  id        String   @id @default(cuid())
+  novelId   String
+  ipAddress String
+  userId    String?
+  viewedAt  DateTime @default(now())
+
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([novelId, ipAddress])
+  @@index([novelId])
+  @@index([ipAddress])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  posterUrl   String?
+  linkUrl     String   // URL to navigate to (novel page, forum topic, etc.)
+  linkType    String   // 'novel', 'forum', 'page', 'external'
+  tag         String   // 'news', 'popular', 'attention', 'new', 'featured'
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // WARN_USER, BAN_USER, UNBAN_USER, APPROVE_NOVEL, REJECT_NOVEL, etc.
+  targetId   String?
+  targetType String?  // 'user', 'novel', 'chapter'
+  details    String?  // JSON with additional info
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

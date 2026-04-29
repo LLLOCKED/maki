@@ -8,12 +8,14 @@ interface Chapter {
   id: string
   title: string
   number: number
+  volume: number | null
   createdAt: Date
   teamId: string | null
   moderationStatus: string
   team: {
     id: string
     name: string
+    slug: string
   } | null
 }
 
@@ -21,9 +23,10 @@ interface ChapterTabsProps {
   novelSlug: string
   chapters: Chapter[]
   isAdmin?: boolean
+  userTeamSlugs?: string[]
 }
 
-export default function ChapterTabs({ novelSlug, chapters, isAdmin = false }: ChapterTabsProps) {
+export default function ChapterTabs({ novelSlug, chapters, isAdmin = false, userTeamSlugs = [] }: ChapterTabsProps) {
   // Filter chapters: show all for admins, only APPROVED for non-admins
   const visibleChapters = isAdmin
     ? chapters
@@ -89,11 +92,14 @@ export default function ChapterTabs({ novelSlug, chapters, isAdmin = false }: Ch
       {/* Active Chapter List */}
       {entries.map(([teamId, teamChapters]) => {
         if (teamId !== activeTab) return null
+        const isTeamMember = userTeamSlugs.includes(teamChapters[0]?.team?.slug || '')
         return (
           <ChapterList
             key={teamId || 'no-team'}
             novelSlug={novelSlug}
             chapters={teamChapters}
+            isTeamMember={isTeamMember}
+            teamSlugs={userTeamSlugs}
           />
         )
       })}
