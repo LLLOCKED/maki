@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { collectionCreateSchema, collectionMutationSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -34,18 +36,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { name, isPublic } = await request.json()
-
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, collectionCreateSchema)
+    if (isValidationResponse(body)) return body
+    const { name, isPublic } = body
 
     const collection = await prisma.collection.create({
       data: {
@@ -63,18 +60,13 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { collectionId, novelId, action } = await request.json()
-
-    if (!collectionId || !novelId || !action) {
-      return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, collectionMutationSchema)
+    if (isValidationResponse(body)) return body
+    const { collectionId, novelId, action } = body
 
     // Verify ownership
     const collection = await prisma.collection.findUnique({

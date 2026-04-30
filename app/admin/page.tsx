@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Shield, BookOpen, FileText, Clock } from 'lucide-react'
+import { Shield, BookOpen, FileText, Clock, Settings, Users, MessageSquare, UserCheck, Activity, Search, UserX, Megaphone } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default async function AdminPage() {
@@ -18,7 +18,28 @@ export default async function AdminPage() {
     notFound()
   }
 
-  const [pendingNovels, pendingChapters] = await Promise.all([
+  const isOwner = role === 'OWNER'
+
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+
+  const [
+    pendingNovelsCount,
+    pendingChaptersCount,
+    usersCount,
+    novelsCount,
+    chaptersCount,
+    activeUsersCount,
+    commentsCount,
+    recentNovels,
+    recentChapters,
+  ] = await Promise.all([
+    prisma.novel.count({ where: { moderationStatus: 'PENDING' } }),
+    prisma.chapter.count({ where: { moderationStatus: 'PENDING' } }),
+    prisma.user.count(),
+    prisma.novel.count(),
+    prisma.chapter.count(),
+    prisma.user.count({ where: { lastSeen: { gte: fiveMinutesAgo } } }),
+    prisma.comment.count(),
     prisma.novel.findMany({
       where: { moderationStatus: 'PENDING' },
       select: { id: true, title: true, slug: true, createdAt: true },
@@ -33,11 +54,6 @@ export default async function AdminPage() {
     }),
   ])
 
-  const [novelsCount, chaptersCount] = await Promise.all([
-    prisma.novel.count({ where: { moderationStatus: 'PENDING' } }),
-    prisma.chapter.count({ where: { moderationStatus: 'PENDING' } }),
-  ])
-
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-8 flex items-center gap-3">
@@ -49,14 +65,57 @@ export default async function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Новели на перевірці</CardTitle>
+            <CardTitle className="text-sm font-medium">Користувачі</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{usersCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Активні (5 хв)</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeUsersCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Новели</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{novelsCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Розділи</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{chaptersCount}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pending Moderation */}
+      <div className="grid gap-4 md:grid-cols-2 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">На перевірці: новели</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold mb-2">{pendingNovelsCount}</div>
             <Link
               href="/admin/novels"
               className="text-xs text-primary hover:underline"
@@ -68,11 +127,11 @@ export default async function AdminPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Розділи на перевірці</CardTitle>
+            <CardTitle className="text-sm font-medium">На перевірці: розділи</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{chaptersCount}</div>
+            <div className="text-2xl font-bold mb-2">{pendingChaptersCount}</div>
             <Link
               href="/admin/chapters"
               className="text-xs text-primary hover:underline"
@@ -82,6 +141,86 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Коментарі</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{commentsCount}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {isOwner && (
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <Link href="/admin/settings">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <Settings className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Налаштування сайту</CardTitle>
+                  <p className="text-sm text-muted-foreground">Жанри та категорії форуму</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/activity">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <Activity className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Журнал активності</CardTitle>
+                  <p className="text-sm text-muted-foreground">Дії адмінів та модераторів</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/users">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <UserX className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Користувачі</CardTitle>
+                  <p className="text-sm text-muted-foreground">Бани та попередження</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/announcements">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <Megaphone className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Оголошення</CardTitle>
+                  <p className="text-sm text-muted-foreground">Керування каруселлю</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
+
+      {isOwner && (
+        <div className="mb-8">
+          <Link href="/admin/seo">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <Search className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">SEO дашборд</CardTitle>
+                  <p className="text-sm text-muted-foreground">Статистика та оптимізація</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
 
       {/* Recent Pending Items */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -94,11 +233,11 @@ export default async function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {pendingNovels.length === 0 ? (
+            {recentNovels.length === 0 ? (
               <p className="text-sm text-muted-foreground">Немає нвелів на перевірці</p>
             ) : (
               <div className="space-y-3">
-                {pendingNovels.map((novel) => (
+                {recentNovels.map((novel) => (
                   <div key={novel.id} className="flex items-center justify-between">
                     <Link
                       href={`/admin/novels?id=${novel.id}`}
@@ -122,11 +261,11 @@ export default async function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {pendingChapters.length === 0 ? (
+            {recentChapters.length === 0 ? (
               <p className="text-sm text-muted-foreground">Немає розділів на перевірці</p>
             ) : (
               <div className="space-y-3">
-                {pendingChapters.map((chapter) => (
+                {recentChapters.map((chapter) => (
                   <div key={chapter.id} className="flex items-center justify-between">
                     <Link
                       href={`/novel/${chapter.novel?.slug || ''}`}

@@ -1,5 +1,4 @@
 import { MetadataRoute } from 'next'
-import { prisma } from '@/lib/prisma'
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   return {
@@ -8,6 +7,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       allow: '/',
       disallow: ['/api/', '/admin/'],
     },
-    sitemap: 'https://ranobehub.com/sitemap.xml',
+    sitemap: 'https://honni.fun/sitemap.xml',
   }
 }

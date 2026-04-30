@@ -1,24 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { isValidationResponse, parseJsonBody, resetPasswordSchema } from '@/lib/validation'
 
 export async function POST(request: Request) {
   try {
-    const { token, password } = await request.json()
-
-    if (!token || !password) {
-      return NextResponse.json(
-        { error: 'Token and new password are required' },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      )
-    }
+    const body = await parseJsonBody(request, resetPasswordSchema)
+    if (isValidationResponse(body)) return body
+    const { token, password } = body
 
     // Find and validate token
     const verificationToken = await prisma.verificationToken.findUnique({

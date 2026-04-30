@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { safeFetchJson } from '@/lib/fetch-json'
 import { cn } from '@/lib/utils'
 
 interface Novel {
@@ -30,11 +31,10 @@ export default function NovelSelector({ onSelect, selectedNovel }: NovelSelector
     const searchNovels = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/novels?search=${encodeURIComponent(search)}&limit=10`)
-        if (res.ok) {
-          const data = await res.json()
-          setNovels(data.novels)
-        }
+        const data = await safeFetchJson<{ novels?: Novel[] }>(`/api/novels?search=${encodeURIComponent(search)}&limit=10`)
+        setNovels(data.novels || [])
+      } catch {
+        setNovels([])
       } finally {
         setIsLoading(false)
       }

@@ -9,6 +9,9 @@ const prismaMock = {
   chapter: {
     create: vi.fn(),
   },
+  teamMembership: {
+    findUnique: vi.fn(),
+  },
 }
 
 vi.mock('@/lib/prisma', () => ({
@@ -123,10 +126,15 @@ describe('POST /api/chapters', () => {
     expect(data.error).toContain('Team is required')
   })
 
-  it('should allow any user to add chapter to translated novel with teamId', async () => {
+  it('should allow team member to add chapter to translated novel with teamId', async () => {
     mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
 
     prismaMock.novel.findUnique.mockResolvedValue(testNovels.translated)
+    prismaMock.teamMembership.findUnique.mockResolvedValue({
+      userId: 'user-regular-id',
+      teamId: 'team-1',
+      role: 'member',
+    })
 
     const mockChapter = {
       id: 'chapter-new',
@@ -156,6 +164,32 @@ describe('POST /api/chapters', () => {
 
     expect(response.status).toBe(201)
     expect(data.teamId).toBe('team-1')
+  })
+
+  it('should reject non-member adding chapter to translated novel with teamId', async () => {
+    mockAuth.mockResolvedValue(createMockSession('user-regular-id'))
+
+    prismaMock.novel.findUnique.mockResolvedValue(testNovels.translated)
+    prismaMock.teamMembership.findUnique.mockResolvedValue(null)
+
+    const request = new Request('http://localhost/api/chapters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Chapter 1',
+        number: 1,
+        novelId: 'novel-translated-id',
+        teamId: 'team-1',
+      }),
+    })
+
+    const { POST } = await import('@/app/api/chapters/route')
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toContain('Only team members')
+    expect(prismaMock.chapter.create).not.toHaveBeenCalled()
   })
 
   it('should reject unauthenticated request', async () => {

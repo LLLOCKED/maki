@@ -1,22 +1,23 @@
 'use client'
 
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import ReaderSettings, { useReaderSettings } from './reader-settings'
 import CommentSection from './comment-section'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import SafeMarkdown from '@/components/safe-markdown'
 
 interface Chapter {
   id: string
   title: string
   number: number
+  volume: number | null
   content: string
   team: {
     id: string
     name: string
+    slug: string
   } | null
 }
 
@@ -26,6 +27,7 @@ interface ReaderClientProps {
   allTranslations?: Chapter[]
   initialChapterId?: string
   novelSlug: string
+  novelId: string
   chapterNumber: number
   currentChapter: number
   totalChapters: number
@@ -33,8 +35,12 @@ interface ReaderClientProps {
   hasNextChapter: boolean
   prevChapterId: string | null
   prevChapterNumber: number | null
+  prevChapterVolume: number | null
+  prevChapterTeamSlug: string | null
   nextChapterId: string | null
   nextChapterNumber: number | null
+  nextChapterVolume: number | null
+  nextChapterTeamSlug: string | null
   overallProgress: string
 }
 
@@ -44,6 +50,7 @@ export default function ReaderClient({
   allTranslations,
   initialChapterId,
   novelSlug,
+  novelId,
   chapterNumber,
   currentChapter,
   totalChapters,
@@ -51,8 +58,12 @@ export default function ReaderClient({
   hasNextChapter,
   prevChapterId,
   prevChapterNumber,
+  prevChapterVolume,
+  prevChapterTeamSlug,
   nextChapterId,
   nextChapterNumber,
+  nextChapterVolume,
+  nextChapterTeamSlug,
   overallProgress,
 }: ReaderClientProps) {
   const router = useRouter()
@@ -64,9 +75,18 @@ export default function ReaderClient({
     themeClass,
     fontSizeClass,
     contentWidthClass,
+    readerFont,
+    lineHeight,
+    paragraphSpacing,
+    readerFontClass,
+    lineHeightClass,
+    paragraphSpacingClass,
     setTheme,
     setFontSize,
     setContentWidth,
+    setReaderFont,
+    setLineHeight,
+    setParagraphSpacing,
   } = useReaderSettings()
 
   const selectedChapter = chapters.find((c) => c.id === selectedChapterId) || chapters[0]
@@ -78,15 +98,30 @@ export default function ReaderClient({
     }
   }, [initialChapterId, chapters])
 
+  // Update reading position in bookmark when chapter changes
+  useEffect(() => {
+    if (novelId && chapterNumber) {
+      fetch('/api/bookmarks/position', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novelId, chapterNumber }),
+      }).catch(console.error)
+    }
+  }, [novelId, chapterNumber])
+
   const handlePrevChapter = () => {
     if (prevChapterId && prevChapterNumber) {
-      router.push(`/read/${novelSlug}/${prevChapterNumber}?chapter=${prevChapterId}`)
+      const volStr = prevChapterVolume ? `${prevChapterVolume}.` : ''
+      const teamPath = prevChapterTeamSlug ? `/${prevChapterTeamSlug}` : ''
+      router.push(`/read/${novelSlug}/${volStr}${prevChapterNumber}${teamPath}`)
     }
   }
 
   const handleNextChapter = () => {
     if (nextChapterId && nextChapterNumber) {
-      router.push(`/read/${novelSlug}/${nextChapterNumber}?chapter=${nextChapterId}`)
+      const volStr = nextChapterVolume ? `${nextChapterVolume}.` : ''
+      const teamPath = nextChapterTeamSlug ? `/${nextChapterTeamSlug}` : ''
+      router.push(`/read/${novelSlug}/${volStr}${nextChapterNumber}${teamPath}`)
     }
   }
 
@@ -96,9 +131,15 @@ export default function ReaderClient({
         currentTheme={theme}
         currentFontSize={fontSize}
         currentContentWidth={contentWidth}
+        currentReaderFont={readerFont}
+        currentLineHeight={lineHeight}
+        currentParagraphSpacing={paragraphSpacing}
         onThemeChange={setTheme}
         onFontSizeChange={setFontSize}
         onContentWidthChange={setContentWidth}
+        onReaderFontChange={setReaderFont}
+        onLineHeightChange={setLineHeight}
+        onParagraphSpacingChange={setParagraphSpacing}
         onPrevChapter={handlePrevChapter}
         onNextChapter={handleNextChapter}
         hasPrevChapter={hasPrevChapter}
@@ -136,7 +177,12 @@ export default function ReaderClient({
                   return (
                     <button
                       key={teamId || 'no-team'}
-                      onClick={() => router.push(`/read/${novelSlug}/${teamChapters[0].number}?chapter=${teamChapters[0].id}`)}
+                      onClick={() => {
+                        const ch = teamChapters[0]
+                        const volStr = ch.volume ? `${ch.volume}.` : ''
+                        const teamPath = ch.team?.slug ? `/${ch.team.slug}` : ''
+                        router.push(`/read/${novelSlug}/${volStr}${ch.number}${teamPath}`)
+                      }}
                       className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm transition-colors ${
                         isSelected
                           ? 'bg-primary text-primary-foreground'
@@ -161,16 +207,34 @@ export default function ReaderClient({
       })()}
 
       <article
-        className={`${themeClass} ${fontSizeClass} flex-1 px-4 py-8 md:px-8`}
+        className={`${themeClass} ${fontSizeClass} ${readerFontClass} ${lineHeightClass} ${paragraphSpacingClass} flex-1 px-4 py-8 md:px-8`}
       >
         <div className={`mx-auto ${contentWidthClass}`}>
           <div className="markdown-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {selectedChapter?.content || ''}
-            </ReactMarkdown>
+            <SafeMarkdown>{selectedChapter?.content || ''}</SafeMarkdown>
           </div>
         </div>
       </article>
+
+      {/* Progress Bar */}
+      <div className="border-t px-4 py-2">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {currentChapter} з {totalChapters}
+            </span>
+            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="absolute left-0 top-0 h-full bg-primary transition-all"
+                style={{ width: `${(currentChapter / totalChapters) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {overallProgress}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Bottom Navigation */}
       <div className="flex items-center justify-center gap-4 border-t p-4">

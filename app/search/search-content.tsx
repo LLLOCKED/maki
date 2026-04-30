@@ -99,9 +99,9 @@ export default function SearchPageContent() {
                             fill
                             className="object-cover"
                           />
-                        ) : (
+                          ) : (
                           <div className="flex h-full items-center justify-center">
-                            <span className="text-4xl">📚</span>
+                            <BookOpen className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
                           </div>
                         )}
                       </div>

@@ -10,11 +10,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Settings, Sun, Moon, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Sun, Moon, BookOpen, ChevronLeft, ChevronRight, Type } from 'lucide-react'
 
 type ReaderTheme = 'light' | 'dark' | 'sepia'
 type FontSize = 'sm' | 'md' | 'lg' | 'xl'
 type ContentWidth = 'narrow' | 'medium' | 'wide' | 'full'
+type ReaderFont = 'serif' | 'sans' | 'mono'
+type LineHeight = 'compact' | 'normal' | 'relaxed'
+type ParagraphSpacing = 'compact' | 'normal' | 'spacious'
 
 const contentWidthClasses: Record<ContentWidth, string> = {
   narrow: 'max-w-2xl',
@@ -44,6 +47,42 @@ const fontSizeLabels: Record<FontSize, string> = {
   xl: 'Дуже крупний',
 }
 
+const readerFontClasses: Record<ReaderFont, string> = {
+  serif: 'reader-font-serif',
+  sans: 'reader-font-sans',
+  mono: 'reader-font-mono',
+}
+
+const readerFontLabels: Record<ReaderFont, string> = {
+  serif: 'Засічки',
+  sans: 'Без засічок',
+  mono: 'Моноширинний',
+}
+
+const lineHeightClasses: Record<LineHeight, string> = {
+  compact: 'reader-leading-compact',
+  normal: 'reader-leading-normal',
+  relaxed: 'reader-leading-relaxed',
+}
+
+const lineHeightLabels: Record<LineHeight, string> = {
+  compact: 'Компактно',
+  normal: 'Звичайно',
+  relaxed: 'Вільно',
+}
+
+const paragraphSpacingClasses: Record<ParagraphSpacing, string> = {
+  compact: 'reader-spacing-compact',
+  normal: 'reader-spacing-normal',
+  spacious: 'reader-spacing-spacious',
+}
+
+const paragraphSpacingLabels: Record<ParagraphSpacing, string> = {
+  compact: 'Компактні',
+  normal: 'Звичайні',
+  spacious: 'Просторі',
+}
+
 const themeClasses: Record<ReaderTheme, string> = {
   light: 'reader-light',
   dark: 'reader-dark',
@@ -66,9 +105,15 @@ interface ReaderSettingsProps {
   onThemeChange: (theme: ReaderTheme) => void
   onFontSizeChange: (size: FontSize) => void
   onContentWidthChange: (width: ContentWidth) => void
+  onReaderFontChange: (font: ReaderFont) => void
+  onLineHeightChange: (height: LineHeight) => void
+  onParagraphSpacingChange: (spacing: ParagraphSpacing) => void
   currentTheme: ReaderTheme
   currentFontSize: FontSize
   currentContentWidth: ContentWidth
+  currentReaderFont: ReaderFont
+  currentLineHeight: LineHeight
+  currentParagraphSpacing: ParagraphSpacing
   onPrevChapter: () => void
   onNextChapter: () => void
   hasPrevChapter: boolean
@@ -81,9 +126,15 @@ export default function ReaderSettings({
   onThemeChange,
   onFontSizeChange,
   onContentWidthChange,
+  onReaderFontChange,
+  onLineHeightChange,
+  onParagraphSpacingChange,
   currentTheme,
   currentFontSize,
   currentContentWidth,
+  currentReaderFont,
+  currentLineHeight,
+  currentParagraphSpacing,
   onPrevChapter,
   onNextChapter,
   hasPrevChapter,
@@ -170,6 +221,49 @@ export default function ReaderSettings({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Typography */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Type className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Шрифт</DropdownMenuLabel>
+            {(Object.keys(readerFontLabels) as ReaderFont[]).map((font) => (
+              <DropdownMenuItem
+                key={font}
+                onClick={() => onReaderFontChange(font)}
+                className={currentReaderFont === font ? 'bg-accent' : ''}
+              >
+                {readerFontLabels[font]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Міжряддя</DropdownMenuLabel>
+            {(Object.keys(lineHeightLabels) as LineHeight[]).map((height) => (
+              <DropdownMenuItem
+                key={height}
+                onClick={() => onLineHeightChange(height)}
+                className={currentLineHeight === height ? 'bg-accent' : ''}
+              >
+                {lineHeightLabels[height]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Абзаци</DropdownMenuLabel>
+            {(Object.keys(paragraphSpacingLabels) as ParagraphSpacing[]).map((spacing) => (
+              <DropdownMenuItem
+                key={spacing}
+                onClick={() => onParagraphSpacingChange(spacing)}
+                className={currentParagraphSpacing === spacing ? 'bg-accent' : ''}
+              >
+                {paragraphSpacingLabels[spacing]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Content Width Slider */}
         <div className="hidden items-center gap-2 md:flex">
           <span className="text-xs text-muted-foreground">Ш</span>
@@ -192,6 +286,9 @@ export function useReaderSettings() {
   const [theme, setTheme] = useState<ReaderTheme>('light')
   const [fontSize, setFontSize] = useState<FontSize>('md')
   const [contentWidth, setContentWidth] = useState<ContentWidth>('medium')
+  const [readerFont, setReaderFont] = useState<ReaderFont>('serif')
+  const [lineHeight, setLineHeight] = useState<LineHeight>('relaxed')
+  const [paragraphSpacing, setParagraphSpacing] = useState<ParagraphSpacing>('normal')
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -199,9 +296,15 @@ export function useReaderSettings() {
       const savedTheme = localStorage.getItem('reader-theme') as ReaderTheme | null
       const savedFontSize = localStorage.getItem('reader-font-size') as FontSize | null
       const savedWidth = localStorage.getItem('reader-content-width') as ContentWidth | null
+      const savedReaderFont = localStorage.getItem('reader-font') as ReaderFont | null
+      const savedLineHeight = localStorage.getItem('reader-line-height') as LineHeight | null
+      const savedParagraphSpacing = localStorage.getItem('reader-paragraph-spacing') as ParagraphSpacing | null
       if (savedTheme && themeClasses[savedTheme]) setTheme(savedTheme)
       if (savedFontSize && fontSizeClasses[savedFontSize]) setFontSize(savedFontSize)
       if (savedWidth && contentWidthClasses[savedWidth]) setContentWidth(savedWidth)
+      if (savedReaderFont && readerFontClasses[savedReaderFont]) setReaderFont(savedReaderFont)
+      if (savedLineHeight && lineHeightClasses[savedLineHeight]) setLineHeight(savedLineHeight)
+      if (savedParagraphSpacing && paragraphSpacingClasses[savedParagraphSpacing]) setParagraphSpacing(savedParagraphSpacing)
     }
   }, [])
 
@@ -221,22 +324,49 @@ export function useReaderSettings() {
     localStorage.setItem('reader-content-width', newWidth)
   }
 
+  const handleSetReaderFont = (newFont: ReaderFont) => {
+    setReaderFont(newFont)
+    localStorage.setItem('reader-font', newFont)
+  }
+
+  const handleSetLineHeight = (newHeight: LineHeight) => {
+    setLineHeight(newHeight)
+    localStorage.setItem('reader-line-height', newHeight)
+  }
+
+  const handleSetParagraphSpacing = (newSpacing: ParagraphSpacing) => {
+    setParagraphSpacing(newSpacing)
+    localStorage.setItem('reader-paragraph-spacing', newSpacing)
+  }
+
   const themeClass = themeClasses[theme]
   const fontSizeClass = fontSizeClasses[fontSize]
   const contentWidthClass = contentWidthClasses[contentWidth]
+  const readerFontClass = readerFontClasses[readerFont]
+  const lineHeightClass = lineHeightClasses[lineHeight]
+  const paragraphSpacingClass = paragraphSpacingClasses[paragraphSpacing]
 
   return {
     theme,
     fontSize,
     contentWidth,
+    readerFont,
+    lineHeight,
+    paragraphSpacing,
     themeClass,
     fontSizeClass,
     contentWidthClass,
+    readerFontClass,
+    lineHeightClass,
+    paragraphSpacingClass,
     setTheme: handleSetTheme,
     setFontSize: handleSetFontSize,
     setContentWidth: handleSetContentWidth,
+    setReaderFont: handleSetReaderFont,
+    setLineHeight: handleSetLineHeight,
+    setParagraphSpacing: handleSetParagraphSpacing,
   }
 }
 
-export type { ReaderTheme, FontSize, ContentWidth }
-export { fontSizeClasses, fontSizeLabels, themeClasses, themeLabels, themeIcons, contentWidthClasses, contentWidthLabels }
+export type { ReaderTheme, FontSize, ContentWidth, ReaderFont, LineHeight, ParagraphSpacing }
+export { fontSizeClasses, fontSizeLabels, themeClasses, themeLabels, themeIcons, contentWidthClasses, contentWidthLabels, readerFontClasses, readerFontLabels, lineHeightClasses, lineHeightLabels, paragraphSpacingClasses, paragraphSpacingLabels }

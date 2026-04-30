@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-const FROM = process.env.EMAIL_FROM || 'noreply@ranobehub.com'
+const FROM = process.env.EMAIL_FROM || 'noreply@honni.fun'
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
 export async function sendVerificationEmail(email: string, token: string) {
@@ -10,10 +10,10 @@ export async function sendVerificationEmail(email: string, token: string) {
   await resend.emails.send({
     from: FROM,
     to: email,
-    subject: 'Підтвердження реєстрації | RanobeHub',
+    subject: 'Підтвердження реєстрації | honni',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #6366f1;">Ласкаво просимо до RanobeHub!</h2>
+        <h2 style="color: #6366f1;">Ласкаво просимо до honni!</h2>
         <p>Дякуємо за реєстрацію. Натисніть кнопку нижче, щоб підтвердити свою електронну адресу:</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${verifyUrl}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Підтвердити пошту</a>
@@ -21,7 +21,7 @@ export async function sendVerificationEmail(email: string, token: string) {
         <p style="color: #666; font-size: 14px;">Або скопіюйте посилання в адресний рядок браузера:</p>
         <p style="color: #666; font-size: 14px; word-break: break-all;">${verifyUrl}</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #999; font-size: 12px;">Якщо ви не реєструвалися на RanobeHub, просто ігноруйте цей лист.</p>
+        <p style="color: #999; font-size: 12px;">Якщо ви не реєструвалися на honni, просто ігноруйте цей лист.</p>
       </div>
     `,
   })
@@ -34,7 +34,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   await resend.emails.send({
     from: FROM,
     to: email,
-    subject: 'Скидання пароля | RanobeHub',
+    subject: 'Скидання пароля | honni',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #6366f1;">Скидання пароля</h2>

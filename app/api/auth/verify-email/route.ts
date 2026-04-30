@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -47,9 +49,9 @@ export async function GET(request: Request) {
       where: { token },
     })
 
-    return NextResponse.json({
-      message: 'Email підтверджено! Тепер ви можете увійти.',
-    })
+    const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+
+    return NextResponse.redirect(`${BASE_URL}/login?verified=true`)
   } catch (error) {
     console.error('Verification error:', error)
     return NextResponse.json(

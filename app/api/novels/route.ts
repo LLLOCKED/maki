@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-types'
 import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
+import { createNovelSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
       genres: searchParams.get('genres') || undefined,
       tags: searchParams.get('tags') || undefined,
       authors: searchParams.get('authors') || undefined,
+      publishers: searchParams.get('publishers') || undefined,
       type: searchParams.get('type') || undefined,
       status: searchParams.get('status') || undefined,
       translationStatus: searchParams.get('translationStatus') || undefined,
@@ -26,18 +28,19 @@ export async function GET(request: Request) {
       yearTo: searchParams.get('yearTo') || undefined,
     })
 
-    const orderBy: any = {}
+    const orderBy: any[] = []
     if (sortBy === 'rating') {
-      orderBy.averageRating = sortOrder
+      orderBy.push({ averageRating: sortOrder })
     } else if (sortBy === 'views') {
-      orderBy.viewCount = sortOrder
+      orderBy.push({ viewCount: sortOrder })
     } else if (sortBy === 'year') {
-      orderBy.releaseYear = sortOrder
+      orderBy.push({ releaseYear: sortOrder })
     } else if (sortBy === 'created') {
-      orderBy.createdAt = sortOrder
+      orderBy.push({ createdAt: sortOrder })
     } else {
-      orderBy.title = sortOrder
+      orderBy.push({ title: sortOrder })
     }
+    orderBy.push({ id: 'asc' })
 
     let novels: any[] = []
     let total = 0
@@ -135,17 +138,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const body = await request.json()
+    const body = await parseJsonBody(request, createNovelSchema)
+    if (isValidationResponse(body)) return body
+
     const {
       title,
       originalName,
@@ -160,28 +159,29 @@ export async function POST(request: Request) {
       tagIds,
       publisherIds,
       authorIds,
+      sourceUrl,
+      isExplicit,
+      contentWarnings,
+      donationUrl,
     } = body
-
-    if (!title || !slug || !description) {
-      return NextResponse.json(
-        { error: 'Title, slug and description are required' },
-        { status: 400 }
-      )
-    }
 
     const novel = await prisma.novel.create({
       data: {
         title,
-        originalName: originalName || null,
+        originalName,
         slug,
         description,
-        coverUrl: coverUrl || null,
-        type: type || 'ORIGINAL',
-        status: status || 'ONGOING',
-        translationStatus: translationStatus || 'TRANSLATING',
+        coverUrl,
+        type,
+        status,
+        translationStatus,
         moderationStatus: 'PENDING',
-        releaseYear: releaseYear ? parseInt(releaseYear) : null,
-        authorId: (type || 'ORIGINAL') === 'ORIGINAL' ? session.user.id : null,
+        releaseYear: releaseYear ?? null,
+        authorId: type === 'ORIGINAL' ? session.user.id : null,
+        sourceUrl,
+        isExplicit,
+        contentWarnings,
+        donationUrl,
         genres: genreIds?.length
           ? {
               create: genreIds.map((genreId: string) => ({

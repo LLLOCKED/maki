@@ -1,27 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { createChapterSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const body = await request.json()
-    const { title, number, content, novelId, teamId } = body
+    const body = await parseJsonBody(request, createChapterSchema)
+    if (isValidationResponse(body)) return body
 
-    if (!title || !number || !novelId) {
-      return NextResponse.json(
-        { error: 'Title, number and novelId are required' },
-        { status: 400 }
-      )
-    }
+    const { title, number, content, novelId, teamId, volume } = body
 
     // Get the novel to check its type
     const novel = await prisma.novel.findUnique({
@@ -49,8 +39,9 @@ export async function POST(request: Request) {
       const chapter = await prisma.chapter.create({
         data: {
           title,
-          number: parseInt(number),
-          content: content || '',
+          number,
+          volume: volume ?? null,
+          content,
           novelId,
           teamId: null, // No team for original novels
           moderationStatus: 'PENDING',
@@ -72,13 +63,29 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
-      // Any registered user can add chapters to translated novels under a team
+
+      const membership = await prisma.teamMembership.findUnique({
+        where: {
+          userId_teamId: {
+            userId: session.user.id,
+            teamId,
+          },
+        },
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Only team members can add chapters for this team' },
+          { status: 403 }
+        )
+      }
 
       const chapter = await prisma.chapter.create({
         data: {
           title,
-          number: parseInt(number),
-          content: content || '',
+          number,
+          volume: volume ?? null,
+          content,
           novelId,
           teamId,
           moderationStatus: 'PENDING',

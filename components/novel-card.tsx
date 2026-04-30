@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star } from 'lucide-react'
+import { AlertTriangle, BookOpen, Star } from 'lucide-react'
 
 interface NovelCardProps {
   novel: {
@@ -13,6 +13,8 @@ interface NovelCardProps {
     averageRating: number
     genres: { genre: { name: string; slug: string } }[]
     authors?: { author: { id: string; name: string } }[]
+    contentWarnings?: string[]
+    isExplicit?: boolean
   }
 }
 
@@ -28,11 +30,29 @@ export default function NovelCard({ novel }: NovelCardProps) {
               src={novel.coverUrl}
               alt={novel.title}
               fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+              loading="eager"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-4xl">📚</span>
+              <BookOpen className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+            </div>
+          )}
+          {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+            <div className="absolute top-2 right-2 flex flex-col gap-1">
+              {novel.contentWarnings.slice(0, 2).map((warning) => (
+                <span key={warning} className="px-1.5 py-0.5 text-xs text-white bg-red-500 rounded">
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                </span>
+              ))}
+            </div>
+          )}
+          {novel.isExplicit && (
+            <div className="absolute top-2 left-2">
+              <span className="px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
+                18+
+              </span>
             </div>
           )}
         </div>

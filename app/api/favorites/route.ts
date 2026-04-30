@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { isValidationResponse, novelIdSchema, parseJsonBody } from '@/lib/validation'
 
 export async function GET() {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
     const favorites = await prisma.favorite.findMany({
@@ -33,18 +31,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { novelId } = await request.json()
-
-    if (!novelId) {
-      return NextResponse.json({ error: 'novelId is required' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, novelIdSchema)
+    if (isValidationResponse(body)) return body
+    const { novelId } = body
 
     // Check if novel exists
     const novel = await prisma.novel.findUnique({
@@ -84,11 +77,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
     const { searchParams } = new URL(request.url)

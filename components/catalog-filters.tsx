@@ -30,6 +30,7 @@ interface Tag {
 interface Author {
   id: string
   name: string
+  slug: string
 }
 
 interface CatalogFiltersProps {
@@ -147,27 +148,57 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
   }
 
   useEffect(() => {
+    const params = new URLSearchParams()
+    const currentSearch = searchParams.get('search') || ''
+    const currentGenres = searchParams.get('genres') || ''
+    const currentTags = searchParams.get('tags') || ''
+    const currentAuthors = searchParams.get('authors') || ''
+    const currentType = searchParams.get('type') || ''
+    const currentStatus = searchParams.get('status') || ''
+    const currentTranslationStatus = searchParams.get('translationStatus') || ''
+    const currentYearFrom = searchParams.get('yearFrom') || ''
+    const currentYearTo = searchParams.get('yearTo') || ''
+    const currentSortBy = searchParams.get('sortBy') || 'title'
+    const currentSortOrder = searchParams.get('sortOrder') || 'asc'
+
+    // Skip if already matches (prevent infinite loop)
+    if (
+      search === currentSearch &&
+      selectedGenres.join(',') === currentGenres &&
+      selectedTags.join(',') === currentTags &&
+      selectedAuthors.join(',') === currentAuthors &&
+      selectedType === currentType &&
+      selectedStatus === currentStatus &&
+      selectedTranslationStatus === currentTranslationStatus &&
+      yearFrom === currentYearFrom &&
+      yearTo === currentYearTo &&
+      sortBy === currentSortBy &&
+      sortOrder === currentSortOrder
+    ) {
+      return
+    }
+
     const timeoutId = setTimeout(() => {
       applyFilters()
     }, 300)
     return () => clearTimeout(timeoutId)
   }, [search, selectedGenres, selectedTags, selectedAuthors, selectedType, selectedStatus, selectedTranslationStatus, yearFrom, yearTo, sortBy, sortOrder])
 
-  const toggleGenre = (id: string) => {
+  const toggleGenre = (slug: string) => {
     setSelectedGenres(prev =>
-      prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+      prev.includes(slug) ? prev.filter(g => g !== slug) : [...prev, slug]
     )
   }
 
-  const toggleTag = (id: string) => {
+  const toggleTag = (slug: string) => {
     setSelectedTags(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+      prev.includes(slug) ? prev.filter(t => t !== slug) : [...prev, slug]
     )
   }
 
-  const toggleAuthor = (id: string) => {
+  const toggleAuthor = (slug: string) => {
     setSelectedAuthors(prev =>
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+      prev.includes(slug) ? prev.filter(a => a !== slug) : [...prev, slug]
     )
   }
 
@@ -314,10 +345,10 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
             <div className="flex flex-wrap gap-1">
               {genres.map((genre) => (
                 <Badge
-                  key={genre.id}
-                  variant={selectedGenres.includes(genre.id) ? 'default' : 'outline'}
+                  key={genre.slug}
+                  variant={selectedGenres.includes(genre.slug) ? 'default' : 'outline'}
                   className="cursor-pointer"
-                  onClick={() => toggleGenre(genre.id)}
+                  onClick={() => toggleGenre(genre.slug)}
                 >
                   {genre.name}
                 </Badge>
@@ -331,10 +362,10 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
             <div className="flex flex-wrap gap-1">
               {tags.map((tag) => (
                 <Badge
-                  key={tag.id}
-                  variant={selectedTags.includes(tag.id) ? 'default' : 'outline'}
+                  key={tag.slug}
+                  variant={selectedTags.includes(tag.slug) ? 'default' : 'outline'}
                   className="cursor-pointer"
-                  onClick={() => toggleTag(tag.id)}
+                  onClick={() => toggleTag(tag.slug)}
                 >
                   {tag.name}
                 </Badge>
@@ -348,10 +379,10 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
             <div className="flex flex-wrap gap-1">
               {authors.map((author) => (
                 <Badge
-                  key={author.id}
-                  variant={selectedAuthors.includes(author.id) ? 'default' : 'outline'}
+                  key={author.slug}
+                  variant={selectedAuthors.includes(author.slug) ? 'default' : 'outline'}
                   className="cursor-pointer"
-                  onClick={() => toggleAuthor(author.id)}
+                  onClick={() => toggleAuthor(author.slug)}
                 >
                   {author.name}
                 </Badge>
@@ -372,28 +403,28 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
       {/* Active Filters */}
       {hasFilters && (
         <div className="flex flex-wrap gap-2">
-          {selectedGenres.map((id) => {
-            const genre = genres.find(g => g.id === id)
+          {selectedGenres.map((slug) => {
+            const genre = genres.find(g => g.slug === slug)
             return genre && (
-              <Badge key={id} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleGenre(id)}>
+              <Badge key={slug} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleGenre(slug)}>
                 {genre.name}
                 <X className="h-3 w-3" />
               </Badge>
             )
           })}
-          {selectedTags.map((id) => {
-            const tag = tags.find(t => t.id === id)
+          {selectedTags.map((slug) => {
+            const tag = tags.find(t => t.slug === slug)
             return tag && (
-              <Badge key={id} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleTag(id)}>
+              <Badge key={slug} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleTag(slug)}>
                 {tag.name}
                 <X className="h-3 w-3" />
               </Badge>
             )
           })}
-          {selectedAuthors.map((id) => {
-            const author = authors.find(a => a.id === id)
+          {selectedAuthors.map((slug) => {
+            const author = authors.find(a => a.slug === slug)
             return author && (
-              <Badge key={id} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleAuthor(id)}>
+              <Badge key={slug} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleAuthor(slug)}>
                 {author.name}
                 <X className="h-3 w-3" />
               </Badge>

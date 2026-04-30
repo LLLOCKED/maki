@@ -1,4 +1,4 @@
-# RanobeHub — Novel Reading Platform
+# honni — Novel Reading Platform
 
 ## 1. Project Overview
 

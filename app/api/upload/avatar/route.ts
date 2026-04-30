@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { uploadToFTP, deleteFromFTP } from '@/lib/ftp'
+import { prisma } from '@/lib/prisma'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { prepareImageUpload } from '@/lib/image-upload'
 import { randomUUID } from 'crypto'
 
-export async function POST(request: Request) {
-  const session = await auth()
+function extractFTPAvatarPath(url: string): { filename: string; folder: string } | null {
+  if (!url || !url.includes('edge-drive.cdn.express')) return null
+  const match = url.match(/\/avatars\/(.+)$/)
+  if (!match) return null
+  return { filename: match[1], folder: 'avatars' }
+}
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function POST(request: Request) {
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
     const formData = await request.formData()
@@ -19,36 +24,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
+    // Get old avatar URL for deletion
+    const oldUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true },
+    })
+    const oldAvatarUrl = oldUser?.image || null
+
+    const image = await prepareImageUpload(file, 'avatar')
+    if ('error' in image) {
+      return NextResponse.json({ error: image.error }, { status: 400 })
     }
 
-    // Check file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large (max 2MB)' }, { status: 400 })
-    }
-
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'avatars')
-    await mkdir(uploadsDir, { recursive: true })
-
-    // Generate unique filename
-    const ext = file.name.split('.').pop() || 'jpg'
+    const ext = image.extension
     const filename = `${session.user.id}-${randomUUID()}.${ext}`
-    const filepath = join(uploadsDir, filename)
 
-    // Write file
-    await writeFile(filepath, buffer)
+    const url = await uploadToFTP(image.buffer, filename, 'avatars')
 
-    // Return public URL
-    const avatarUrl = `/uploads/avatars/${filename}`
+    // Update user avatar
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { image: url },
+    })
 
-    return NextResponse.json({ url: avatarUrl })
+    // Delete old avatar if it existed and is hosted on FTP
+    if (oldAvatarUrl) {
+      const oldPath = extractFTPAvatarPath(oldAvatarUrl)
+      if (oldPath) {
+        await deleteFromFTP(oldPath.filename, oldPath.folder)
+      }
+    }
+
+    return NextResponse.json({ url })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })

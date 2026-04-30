@@ -9,8 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'react-toastify'
 import { Loader2, Eye, Edit } from 'lucide-react'
 import MarkdownToolbar from '@/components/markdown-toolbar'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import SafeMarkdown from '@/components/safe-markdown'
 
 interface Chapter {
   id: string
@@ -119,7 +118,7 @@ export default function ChapterEditForm({ chapter, novelSlug }: ChapterEditFormP
               {isPreview ? (
                 <div className="markdown-content p-4 min-h-[400px]">
                   {content ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                    <SafeMarkdown>{content}</SafeMarkdown>
                   ) : (
                     <p className="text-muted-foreground">Пусто...</p>
                   )}

@@ -35,6 +35,7 @@ export async function GET(request: Request) {
         take: 10,
         select: {
           id: true,
+          slug: true,
           name: true,
         },
       }),
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       })),
       ...teams.map((t) => ({
         type: 'team' as const,
-        id: t.id,
+        id: t.slug,
         title: t.name,
       })),
       ...users.map((u) => ({

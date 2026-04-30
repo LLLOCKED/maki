@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { forumVoteSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { topicId, value } = await request.json()
-
-    if (!topicId || (value !== 1 && value !== -1 && value !== 0)) {
-      return NextResponse.json({ error: 'Invalid vote data' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, forumVoteSchema)
+    if (isValidationResponse(body)) return body
+    const { topicId, value } = body
 
     if (value === 0) {
       // Remove vote

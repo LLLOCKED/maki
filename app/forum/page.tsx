@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Форум',
-  description: 'Форум для обговорень, питань та пропозицій по ранобє та новелах',
+  description: 'Форум для обговорень, питань та пропозицій по ранобе та новелах',
 }
 
 export default async function ForumPage() {
@@ -15,7 +15,7 @@ export default async function ForumPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Форум</h1>
           <p className="text-muted-foreground">Обговорення, питання та пропозиції</p>

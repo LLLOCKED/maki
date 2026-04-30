@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { BookOpen } from 'lucide-react'
 
 interface PosterNovelCardProps {
   novel: {
@@ -13,6 +14,7 @@ interface PosterNovelCardProps {
     coverUrl: string | null
     authors?: string[]
     type?: string
+    isExplicit?: boolean
   }
 }
 
@@ -36,11 +38,13 @@ export default function PosterNovelCard({ novel }: PosterNovelCardProps) {
               src={novel.coverUrl}
               alt={novel.title}
               fill
+              sizes="160px"
+              loading="eager"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-3xl">📚</span>
+              <BookOpen className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
             </div>
           )}
           {novel.type && (
@@ -48,6 +52,13 @@ export default function PosterNovelCard({ novel }: PosterNovelCardProps) {
               <Badge variant="secondary" className="text-xs px-1 py-0">
                 {typeLabels[novel.type] || novel.type}
               </Badge>
+            </div>
+          )}
+          {novel.isExplicit && (
+            <div className="absolute top-1 right-1">
+              <span className="px-1 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
+                18+
+              </span>
             </div>
           )}
         </div>

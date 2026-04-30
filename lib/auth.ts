@@ -6,7 +6,7 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma as any),
   trustHost: true,
   session: {
     strategy: 'jwt',
@@ -35,9 +35,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        // Check if email is verified
         if (!user.emailVerified) {
-          return null
+          throw new Error('Email not verified')
+        }
+
+        if (user.isBanned) {
+          throw new Error('User banned')
         }
 
         const isValid = await bcrypt.compare(
@@ -63,23 +66,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id
         token.role = (user as any).role || 'USER'
+        token.image = user.image as string | null
       }
-      // Always fetch fresh role from DB for JWT
+      // Always fetch fresh role and image from DB for JWT
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { role: true },
+          select: { role: true, image: true },
         })
         if (dbUser) {
           token.role = dbUser.role
+          token.image = dbUser.image
         }
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string; role?: string }).id = token.id as string
-        (session.user as { id?: string; role?: string }).role = token.role as string || 'USER'
+        const userSession = session.user as { id?: string; role?: string; image?: string | null }
+        userSession.id = token.id as string
+        userSession.role = token.role as string || 'USER'
+        userSession.image = token.image as string | null
       }
       return session
     },

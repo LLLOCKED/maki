@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireAdmin } from '@/lib/permissions'
 
 export async function GET() {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const role = (session as {user:{role?:string}}).user.role
-  if (!['OWNER', 'ADMIN', 'MODERATOR'].includes(role || '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const session = await requireAdmin()
+  if (isAuthResponse(session)) return session
 
   try {
     const [pendingNovels, pendingChapters, pendingTopics] = await Promise.all([

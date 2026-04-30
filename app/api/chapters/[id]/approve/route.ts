@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireAdmin } from '@/lib/permissions'
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const role = (session as { user: { role?: string } }).user?.role
-  if (!['OWNER', 'ADMIN', 'MODERATOR'].includes(role || '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const session = await requireAdmin()
+  if (isAuthResponse(session)) return session
 
   const { id: chapterId } = await params
 
@@ -44,7 +36,7 @@ export async function POST(
     })
 
     // Create notifications for eligible users
-    const [bookmarkUsers, favoriteUsers] = await Promise.all([
+    const [bookmarkUsers, favoriteUsers, teamFollowers] = await Promise.all([
       prisma.bookmark.findMany({
         where: { novelId: chapter.novelId, status: { in: ['reading', 'planned'] } },
         select: { userId: true },
@@ -53,12 +45,18 @@ export async function POST(
         where: { novelId: chapter.novelId },
         select: { userId: true },
       }),
+      chapter.teamId
+        ? prisma.$queryRaw<{ userId: string }[]>`
+            SELECT "userId" FROM "TeamFollow" WHERE "teamId" = ${chapter.teamId}
+          `
+        : Promise.resolve([] as { userId: string }[]),
     ])
 
     // Deduplicate and exclude chapter author (if logged in)
     const userIds = [...new Set([
       ...bookmarkUsers.map(b => b.userId),
       ...favoriteUsers.map(f => f.userId),
+      ...teamFollowers.map(f => f.userId),
     ])].filter(id => id !== session.user.id)
 
     if (userIds.length > 0) {

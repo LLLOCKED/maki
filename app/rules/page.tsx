@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Правила',
-  description: 'Правила спільноти Maki для користувачів сайту',
+  description: 'Правила спільноти honni для користувачів сайту',
 }
 
 export default function RulesPage() {
@@ -11,7 +11,7 @@ export default function RulesPage() {
       <h1 className="mb-6 text-3xl font-bold">Правила</h1>
 
       <p className="mb-6 text-sm leading-relaxed">
-        Вітаємо у спільноті Maki! Реєструючись на нашому сайті, ви погоджуєтеся з наведеними
+        Вітаємо у спільноті honni! Реєструючись на нашому сайті, ви погоджуєтеся з наведеними
         нижче правилами. Ми створили їх, щоб зробити процес читання та спілкування приємним
         для кожного.
       </p>
@@ -63,7 +63,7 @@ export default function RulesPage() {
             </li>
             <li>
               <strong>Цитування:</strong> При копіюванні матеріалів із сайту на інші ресурси,
-              пряме посилання на Maki є обов&apos;язковим.
+              пряме посилання на honni є обов&apos;язковим.
             </li>
             <li>
               <strong>Скарги:</strong> Якщо ви помітили порушення своїх авторських прав,

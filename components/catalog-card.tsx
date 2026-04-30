@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star } from 'lucide-react'
+import { AlertTriangle, BookOpen, Star } from 'lucide-react'
 
 interface CatalogCardProps {
   novel: {
@@ -16,6 +16,8 @@ interface CatalogCardProps {
     averageRating: number
     genres: { genre: { name: string; slug: string } }[]
     authors?: { author: { id: string; name: string } }[]
+    contentWarnings?: string[]
+    isExplicit?: boolean
   }
 }
 
@@ -29,18 +31,36 @@ export default function CatalogCard({ novel }: CatalogCardProps) {
 
   return (
     <Link href={`/novel/${novel.slug}`}>
-      <Card className="w-60 h-full overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+      <Card className="h-full overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
         <div className="relative w-full aspect-[3/4] bg-muted">
           {novel.coverUrl ? (
             <Image
               src={novel.coverUrl}
               alt={novel.title}
               fill
-              className="object-contain"
+              sizes="(min-width: 1024px) 240px, (min-width: 768px) 180px, 100vw"
+              loading="eager"
+              className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-3xl">📚</span>
+              <BookOpen className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+            </div>
+          )}
+          {novel.isExplicit && (
+            <div className="absolute top-2 left-2">
+              <span className="px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
+                18+
+              </span>
+            </div>
+          )}
+          {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+            <div className="absolute top-2 right-2 flex flex-col gap-1">
+              {novel.contentWarnings.slice(0, 2).map((warning) => (
+                <span key={warning} className="px-1.5 py-0.5 text-xs text-white bg-red-500 rounded">
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                </span>
+              ))}
             </div>
           )}
         </div>

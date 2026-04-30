@@ -1,35 +1,36 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireAdmin } from '@/lib/permissions'
+import { isValidationResponse, moderationActionSchema, parseJsonBody } from '@/lib/validation'
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const role = (session as {user:{role?:string}}).user?.role
-  if (!['OWNER', 'ADMIN', 'MODERATOR'].includes(role || '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const session = await requireAdmin()
+  if (isAuthResponse(session)) return session
 
   const { id } = await params
 
   try {
-    const { action } = await request.json()
-
-    if (!action || !['APPROVE', 'REJECT'].includes(action)) {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, moderationActionSchema)
+    if (isValidationResponse(body)) return body
+    const { action } = body
 
     const novel = await prisma.novel.update({
       where: { id },
       data: {
         moderationStatus: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      },
+    })
+
+    // Log admin action
+    await prisma.adminActivityLog.create({
+      data: {
+        userId: session.user.id,
+        action: action === 'APPROVE' ? 'APPROVE_NOVEL' : 'REJECT_NOVEL',
+        targetId: id,
+        targetType: 'novel',
       },
     })
 
@@ -44,16 +45,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const role = (session as {user:{role?:string}}).user?.role
-  if (!['OWNER', 'ADMIN', 'MODERATOR'].includes(role || '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const session = await requireAdmin()
+  if (isAuthResponse(session)) return session
 
   const { id } = await params
 

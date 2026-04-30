@@ -9,8 +9,13 @@ interface NovelChapter {
   id: string
   title: string
   number: number
+  volume: number | null
   createdAt: Date
   teamId: string | null
+  team: {
+    slug: string
+    name: string
+  } | null
 }
 
 interface NovelGenre {
@@ -75,7 +80,11 @@ export default function NovelsList({ initialNovels, totalCount }: NovelsListProp
       const res = await fetch(`/api/novels?page=${nextPage}&limit=8`)
       if (res.ok) {
         const data = await res.json()
-        setNovels(prev => [...prev, ...data.novels])
+        setNovels(prev => {
+          const seen = new Set(prev.map(novel => novel.id))
+          const nextNovels = data.novels.filter((novel: Novel) => !seen.has(novel.id))
+          return [...prev, ...nextNovels]
+        })
         setPage(nextPage)
         setHasMore(data.hasMore)
       }

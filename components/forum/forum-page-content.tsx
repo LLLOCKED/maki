@@ -7,6 +7,7 @@ import { MessageSquare, Bug, Users, Lightbulb, Coffee } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import ForumTopicList from './forum-topic-list'
+import { safeFetchJson } from '@/lib/fetch-json'
 
 const categoryIcons: Record<string, React.ReactNode> = {
   bugs: <Bug className="h-5 w-5" />,
@@ -74,15 +75,19 @@ function ForumContent({ currentUserId }: ForumPageContentProps) {
   useEffect(() => {
     setIsLoading(true)
     Promise.all([
-      fetch('/api/forum/categories').then(r => r.json()),
-      fetch(categorySlug
+      safeFetchJson<Category[]>('/api/forum/categories'),
+      safeFetchJson<Topic[]>(categorySlug
         ? `/api/forum/topics?category=${categorySlug}`
         : '/api/forum/topics'
-      ).then(r => r.json())
+      )
     ]).then(([categoriesData, topicsData]) => {
       setCategories(categoriesData)
       setTopics(topicsData)
-    }).catch(console.error)
+    }).catch((error) => {
+      console.error(error)
+      setCategories([])
+      setTopics([])
+    })
       .finally(() => setIsLoading(false))
   }, [categorySlug])
 

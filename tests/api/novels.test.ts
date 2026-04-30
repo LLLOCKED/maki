@@ -189,6 +189,7 @@ describe('POST /api/novels', () => {
 
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('required')
+    expect(data.error).toBe('Invalid request')
+    expect(data.issues.length).toBeGreaterThan(0)
   })
 })

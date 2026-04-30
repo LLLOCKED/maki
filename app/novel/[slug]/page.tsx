@@ -1,16 +1,12 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkBreaks from 'remark-breaks'
-import remarkGfm from 'remark-gfm'
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Star, BookOpen, User, RefreshCw, Clock, Globe, Building2, Users, Plus, Tag } from 'lucide-react'
+import { AlertTriangle, Star, BookOpen, User, RefreshCw, Clock, Globe, Building2, Users, Plus, Tag } from 'lucide-react'
 import ChapterList from '@/components/chapter-list'
 import ChapterTabs from '@/components/chapter-tabs'
 import CommentSection from '@/components/comment-section'
@@ -18,6 +14,7 @@ import ViewTracker from '@/components/view-tracker'
 import Rating from '@/components/rating'
 import BookmarkButton from '@/components/bookmark-button'
 import FavoriteButton from '@/components/favorite-button'
+import SafeMarkdown from '@/components/safe-markdown'
 import ResetModeration from '@/components/reset-moderation-button'
 import { NovelJsonLd } from '@/components/json-ld'
 import ExplicitContentGate from '@/components/explicit-content-gate'
@@ -57,7 +54,7 @@ const translationStatusLabels: Record<string, string> = {
 
 async function getNovel(slug: string, isAdmin: boolean = false, authorId?: string | null) {
   // Build where clause - admins see all, authors see their own pending
-  let where: any = { slug }
+  const where: any = { slug }
   if (!isAdmin && !authorId) {
     where.moderationStatus = 'APPROVED'
   }
@@ -281,7 +278,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
                 )
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  <span className="text-6xl">📚</span>
+                  <BookOpen className="h-16 w-16 text-muted-foreground" aria-hidden="true" />
                 </div>
               )}
             </div>
@@ -432,7 +429,8 @@ export default async function NovelPage({ params }: NovelPageProps) {
                       className={`px-2 py-1 text-xs text-white rounded ${info.color}`}
                       title={`Попередження: ${info.label}`}
                     >
-                      ⚠️ {info.label}
+                      <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                      {info.label}
                     </span>
                   )
                 })}
@@ -474,7 +472,7 @@ export default async function NovelPage({ params }: NovelPageProps) {
             />
             <h2 className="mb-2 font-semibold relative z-10">Опис</h2>
             <div className="text-muted-foreground relative z-10 prose prose-base max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeSanitize]}>{novel.description}</ReactMarkdown>
+              <SafeMarkdown breaks>{novel.description}</SafeMarkdown>
             </div>
           </Card>
 

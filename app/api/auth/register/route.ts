@@ -2,24 +2,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { sendVerificationEmail } from '@/lib/email'
+import { isValidationResponse, parseJsonBody, registerSchema } from '@/lib/validation'
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json()
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      )
-    }
+    const body = await parseJsonBody(request, registerSchema)
+    if (isValidationResponse(body)) return body
+    const { name, email, password } = body
 
     // Check if email already exists
     const existingEmail = await prisma.user.findUnique({
@@ -33,18 +22,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if name already taken (if provided)
-    if (name) {
-      const existingName = await prisma.user.findUnique({
-        where: { name },
-      })
+    // Check if name already taken
+    const existingName = await prisma.user.findUnique({
+      where: { name },
+    })
 
-      if (existingName) {
-        return NextResponse.json(
-          { error: 'Ім\'я користувача вже зайняте' },
-          { status: 400 }
-        )
-      }
+    if (existingName) {
+      return NextResponse.json(
+        { error: 'Ім\'я користувача вже зайняте' },
+        { status: 400 }
+      )
     }
 
     // Hash password
@@ -53,10 +40,10 @@ export async function POST(request: Request) {
     // Create user with unverified email
     const user = await prisma.user.create({
       data: {
-        name: name || null,
+        name,
         email,
         passwordHash,
-        emailVerified: null, // Explicitly unverified
+        emailVerified: null,
       },
     })
 

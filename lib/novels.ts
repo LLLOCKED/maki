@@ -1,10 +1,10 @@
 export function getOrderBySql(sortBy: string, sortOrder: string): string {
   const order = sortOrder === 'desc' ? 'DESC' : 'ASC'
-  if (sortBy === 'rating') return `averageRating ${order}`
-  if (sortBy === 'views') return `viewCount ${order}`
-  if (sortBy === 'year') return `releaseYear ${order}`
-  if (sortBy === 'created') return `createdAt ${order}`
-  return `title ${order}`
+  if (sortBy === 'rating') return `"averageRating" ${order}, "id" ASC`
+  if (sortBy === 'views') return `"viewCount" ${order}, "id" ASC`
+  if (sortBy === 'year') return `"releaseYear" ${order}, "id" ASC`
+  if (sortBy === 'created') return `"createdAt" ${order}, "id" ASC`
+  return `"title" ${order}, "id" ASC`
 }
 
 export function buildNovelWhereClause(params: {
@@ -12,6 +12,7 @@ export function buildNovelWhereClause(params: {
   genres?: string
   tags?: string
   authors?: string
+  publishers?: string
   type?: string
   status?: string
   translationStatus?: string
@@ -23,23 +24,30 @@ export function buildNovelWhereClause(params: {
   }
 
   if (params.genres) {
-    const genreIds = params.genres.split(',').filter(Boolean)
-    if (genreIds.length) {
-      where.genres = { some: { genreId: { in: genreIds } } }
+    const genreSlugs = params.genres.split(',').filter(Boolean)
+    if (genreSlugs.length) {
+      where.genres = { some: { genre: { slug: { in: genreSlugs } } } }
     }
   }
 
   if (params.tags) {
-    const tagIds = params.tags.split(',').filter(Boolean)
-    if (tagIds.length) {
-      where.tags = { some: { tagId: { in: tagIds } } }
+    const tagSlugs = params.tags.split(',').filter(Boolean)
+    if (tagSlugs.length) {
+      where.tags = { some: { tag: { slug: { in: tagSlugs } } } }
     }
   }
 
   if (params.authors) {
-    const authorIds = params.authors.split(',').filter(Boolean)
-    if (authorIds.length) {
-      where.authors = { some: { authorId: { in: authorIds } } }
+    const authorSlugs = params.authors.split(',').filter(Boolean)
+    if (authorSlugs.length) {
+      where.authors = { some: { author: { slug: { in: authorSlugs } } } }
+    }
+  }
+
+  if (params.publishers) {
+    const publisherSlugs = params.publishers.split(',').filter(Boolean)
+    if (publisherSlugs.length) {
+      where.publishers = { some: { publisher: { slug: { in: publisherSlugs } } } }
     }
   }
 

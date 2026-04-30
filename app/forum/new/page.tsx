@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSession } from 'next-auth/react'
 import NovelSelector from '@/components/forum/novel-selector'
+import { FetchJsonError, safeFetchJson } from '@/lib/fetch-json'
 
 interface Category {
   id: string
@@ -36,14 +37,14 @@ export default function NewTopicPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    fetch('/api/forum/categories')
-      .then((res) => res.json())
+    safeFetchJson<Category[]>('/api/forum/categories')
       .then((data) => {
         setCategories(data)
         if (data.length > 0) {
           setCategoryId(data[0].id)
         }
       })
+      .catch(() => setError('Не вдалося завантажити категорії форуму'))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +55,7 @@ export default function NewTopicPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/forum/topics', {
+      const topic = await safeFetchJson<{ id: string }>('/api/forum/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,17 +65,9 @@ export default function NewTopicPage() {
           novelId: selectedNovel?.id || null,
         }),
       })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || 'Помилка при створенні теми')
-        return
-      }
-
-      const topic = await res.json()
       router.push(`/forum/${topic.id}`)
-    } catch (err) {
-      setError('Помилка при створенні теми')
+    } catch (error) {
+      setError(error instanceof FetchJsonError ? error.message : 'Помилка при створенні теми')
     } finally {
       setIsLoading(false)
     }

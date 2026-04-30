@@ -7,6 +7,53 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  USER
+}
+
+enum TeamRole {
+  owner
+  admin
+  member
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NovelType {
+  JAPAN
+  KOREA
+  CHINA
+  ENGLISH
+  ORIGINAL
+}
+
+enum NovelStatus {
+  ONGOING
+  COMPLETED
+  SUSPENDED
+}
+
+enum TranslationStatus {
+  TRANSLATING
+  DROPPED
+  COMPLETED
+  HIATUS
+}
+
+enum BookmarkStatus {
+  reading
+  planned
+  completed
+  dropped
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -41,7 +88,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
-  role          String   @default("USER") // OWNER, ADMIN, MODERATOR, USER
+  role          UserRole @default(USER)
   lastSeen      DateTime?
   isBanned      Boolean   @default(false)
   banReason     String?
@@ -67,6 +114,7 @@ model User {
   novelViews    NovelView[]
   notifications Notification[]
   userFavorites Favorite[]
+  teamFollows   TeamFollow[]
 }
 
 model Collection {
@@ -145,7 +193,7 @@ model Bookmark {
   id              String   @id @default(cuid())
   userId           String
   novelId          String
-  status           String   // reading, planned, completed, dropped
+  status           BookmarkStatus
   readingPosition  Int?     // chapter number where user stopped reading
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -182,7 +230,7 @@ model ForumTopic {
   userId      String
   categoryId  String
   novelId     String?
-  moderationStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
+  moderationStatus ModerationStatus @default(PENDING)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   comments    ForumComment[]
@@ -253,6 +301,7 @@ model Team {
   members     TeamMembership[]
   chapters    Chapter[]
   notifications Notification[]
+  followers     TeamFollow[]
 
   @@index([slug])
 }
@@ -261,13 +310,26 @@ model TeamMembership {
   id        String   @id @default(cuid())
   userId    String
   teamId    String
-  role      String   @default("member") // owner, admin, member
+  role      TeamRole @default(member)
   joinedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([userId, teamId])
+}
+
+model TeamFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
 }
 
 model Novel {
@@ -277,13 +339,13 @@ model Novel {
   slug             String   @unique
   description      String
   coverUrl         String?
-  type             String   @default("ORIGINAL") // JAPAN, KOREA, CHINA, ENGLISH, ORIGINAL
-  status           String   @default("ONGOING") // ONGOING, COMPLETED, SUSPENDED
-  translationStatus String  @default("TRANSLATING") // TRANSLATING, DROPPED, COMPLETED, HIATUS
+  type             NovelType @default(ORIGINAL)
+  status           NovelStatus @default(ONGOING)
+  translationStatus TranslationStatus @default(TRANSLATING)
   releaseYear      Int?
   averageRating    Float   @default(0)
   viewCount        Int     @default(0)
-  moderationStatus String  @default("PENDING") // PENDING, APPROVED, REJECTED
+  moderationStatus ModerationStatus @default(PENDING)
   sourceUrl        String?
   isExplicit       Boolean  @default(false)
   contentWarnings String[] @default([]) // ['violence', 'gore', 'sexual', 'psychological', 'self-harm']
@@ -340,7 +402,7 @@ model Chapter {
   content   String
   novelId   String
   teamId    String?
-  moderationStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
+  moderationStatus ModerationStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -408,14 +470,16 @@ model NovelView {
   novelId   String
   ipAddress String
   userId    String?
+  viewedDate DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
   viewedAt  DateTime @default(now())
 
   novel Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@unique([novelId, ipAddress])
+  @@unique([novelId, ipAddress, viewedDate])
   @@index([novelId])
   @@index([ipAddress])
+  @@index([viewedDate])
 }
 
 model Announcement {

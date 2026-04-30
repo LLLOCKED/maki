@@ -1,10 +1,10 @@
-# RanobeHub
+# honni
 
 Платформа для читання ранобе та новел.
 
 ## Технології
 
-- **Framework:** Next.js 14+ (App Router, TypeScript)
+- **Framework:** Next.js 16+ (App Router, TypeScript)
 - **Auth:** NextAuth.js v5 з Google провайдером
 - **Database:** PostgreSQL через Prisma ORM
 - **Styling:** Tailwind CSS + next-themes
@@ -37,8 +37,8 @@ cp .env.example .env
 # Генерація Prisma клієнта
 npm run db:generate
 
-# Застосування міграцій
-npm run db:push
+# Застосування міграцій локально
+npm run db:migrate
 ```
 
 ### 4. Запуск
@@ -62,8 +62,8 @@ npm run dev
   /catalog            — Каталог з фільтрами
   /contact            — Сторінка контактів
   /novel/[slug]      — Сторінка новелли
-  /read/[slug]/[chapter] — Читалка
-  /team/[id]         — Сторінка команди
+  /read/[slug]/[...path] — Читалка
+  /team/[slug]       — Сторінка команди
   layout.tsx         — Корневий layout
   page.tsx            — Головна сторінка
 

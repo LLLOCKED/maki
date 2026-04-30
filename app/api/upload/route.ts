@@ -1,47 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { uploadToFTP } from '@/lib/ftp'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { prepareImageUpload } from '@/lib/image-upload'
+import { randomUUID } from 'crypto'
 
 export async function POST(request: NextRequest) {
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-
-    console.log('Upload request received, file:', file)
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
+    const image = await prepareImageUpload(file, 'poster')
+    if ('error' in image) {
+      return NextResponse.json({ error: image.error }, { status: 400 })
     }
 
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 })
-    }
+    const ext = image.extension
+    const filename = `${Date.now()}-${randomUUID()}.${ext}`
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const url = await uploadToFTP(image.buffer, filename, 'posters')
 
-    const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'posters')
-    await mkdir(uploadDir, { recursive: true })
-
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-
-    console.log('File saved to:', filepath)
-
-    return NextResponse.json({
-      url: `/uploads/posters/${filename}`,
-    })
+    return NextResponse.json({ url })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Upload failed', details: String(error) }, { status: 500 })
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 }

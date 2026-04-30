@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendPasswordResetEmail } from '@/lib/email'
+import { forgotPasswordSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json()
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      )
-    }
+    const body = await parseJsonBody(request, forgotPasswordSchema)
+    if (isValidationResponse(body)) return body
+    const { email } = body
 
     // Find user by email
     const user = await prisma.user.findUnique({

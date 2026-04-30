@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Eye, MessageCircle } from 'lucide-react'
+import { BookOpen, Eye, MessageCircle } from 'lucide-react'
 
 interface SmallNovelCardProps {
   novel: {
@@ -26,11 +26,12 @@ export default function SmallNovelCard({ novel, variant = 'rating' }: SmallNovel
               src={novel.coverUrl}
               alt={novel.title}
               fill
+              sizes="40px"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-lg">📚</span>
+              <BookOpen className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </div>
           )}
         </div>

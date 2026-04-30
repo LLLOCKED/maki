@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { createForumTopicSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
@@ -41,21 +42,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { title, content, categoryId, novelId } = await request.json()
-
-    if (!title || !content || !categoryId) {
-      return NextResponse.json(
-        { error: 'Title, content and category are required' },
-        { status: 400 }
-      )
-    }
+    const body = await parseJsonBody(request, createForumTopicSchema)
+    if (isValidationResponse(body)) return body
+    const { title, content, categoryId, novelId } = body
 
     const topic = await prisma.forumTopic.create({
       data: {

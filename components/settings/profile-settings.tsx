@@ -9,6 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { User, Upload, Loader2, X } from 'lucide-react'
 
+function extractFTPPath(url: string): { filename: string; folder: string } | null {
+  if (!url || !url.includes('edge-drive.cdn.express')) return null
+  const match = url.match(/\/avatars\/(.+)$/)
+  if (!match) return null
+  return { filename: match[1], folder: 'avatars' }
+}
+
 export default function ProfileSettings() {
   const { data: session, update } = useSession()
   const router = useRouter()
@@ -18,6 +25,7 @@ export default function ProfileSettings() {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const originalAvatarUrl = session?.user?.image || ''
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -72,6 +80,18 @@ export default function ProfileSettings() {
         return
       }
 
+      // Delete old avatar if it changed and was hosted on FTP
+      if (avatarUrl !== originalAvatarUrl && originalAvatarUrl) {
+        const oldPath = extractFTPPath(originalAvatarUrl)
+        if (oldPath) {
+          await fetch('/api/upload/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(oldPath),
+          })
+        }
+      }
+
       await update()
       router.refresh()
     } catch (err) {
@@ -99,8 +119,8 @@ export default function ProfileSettings() {
           )}
 
           {/* Avatar preview and upload */}
-          <div className="flex items-center gap-4">
-            <div className="relative h-20 w-20 overflow-hidden rounded-full bg-muted">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full bg-muted">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -113,7 +133,7 @@ export default function ProfileSettings() {
                 </div>
               )}
             </div>
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-2 w-full">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -121,7 +141,7 @@ export default function ProfileSettings() {
                 accept="image/jpeg,image/png,image/gif,image/webp"
                 className="hidden"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"

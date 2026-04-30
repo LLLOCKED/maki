@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { bookmarkSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 
 export async function GET() {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
     const bookmarks = await prisma.bookmark.findMany({
@@ -33,23 +31,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { novelId, status } = await request.json()
-
-    if (!novelId || !status) {
-      return NextResponse.json({ error: 'novelId and status are required' }, { status: 400 })
-    }
-
-    const validStatuses = ['reading', 'planned', 'completed', 'dropped']
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, bookmarkSchema)
+    if (isValidationResponse(body)) return body
+    const { novelId, status, readingPosition } = body
 
     // Check if novel exists
     const novel = await prisma.novel.findUnique({
@@ -68,11 +56,15 @@ export async function POST(request: Request) {
           novelId,
         },
       },
-      update: { status },
+      update: {
+        status,
+        ...(readingPosition !== undefined && { readingPosition }),
+      },
       create: {
         userId: session.user.id,
         novelId,
         status,
+        readingPosition: readingPosition || null,
       },
       include: {
         novel: {
@@ -94,11 +86,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
     const { searchParams } = new URL(request.url)

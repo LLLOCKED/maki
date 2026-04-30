@@ -22,7 +22,7 @@ export function NovelJsonLd({
     '@type': 'Book',
     name: title,
     description,
-    url: `https://ranobehub.com/novel/${slug}`,
+    url: `https://honni.fun/novel/${slug}`,
     ...(coverUrl && coverUrl.startsWith('http') && { image: coverUrl }),
     author: authors.map((name) => ({
       '@type': 'Person',
@@ -52,14 +52,14 @@ export function WebsiteJsonLd() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'RanobeHub',
-    description: 'Платформа для читання ранобє та новел',
-    url: 'https://ranobehub.com',
+    name: 'honni',
+    description: 'Платформа для читання ранобе та новел',
+    url: 'https://honni.fun',
     potentialAction: {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: 'https://ranobehub.com/?search={search_term_string}',
+        urlTemplate: 'https://honni.fun/?search={search_term_string}',
       },
       'query-input': 'required name=search_term_string',
     },

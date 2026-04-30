@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isValidationResponse, namedEntitySchema, parseJsonBody } from '@/lib/validation'
 
 export const revalidate = 3600
 
@@ -21,11 +22,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { name } = await request.json()
-
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, namedEntitySchema)
+    if (isValidationResponse(body)) return body
+    const { name } = body
 
     const slug = name
       .toLowerCase()

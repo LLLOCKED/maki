@@ -27,7 +27,7 @@ interface SearchUser {
 }
 
 interface AddTeamMemberProps {
-  teamId: string
+  teamSlug: string
   currentUserId: string
   members: Member[]
   isOwner: boolean
@@ -35,7 +35,7 @@ interface AddTeamMemberProps {
 }
 
 export default function AddTeamMember({
-  teamId,
+  teamSlug,
   currentUserId,
   members,
   isOwner,
@@ -118,7 +118,7 @@ export default function AddTeamMember({
     setSuccess('')
 
     try {
-      const res = await fetch(`/api/teams/${teamId}/members`, {
+      const res = await fetch(`/api/teams/${teamSlug}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: selectedUser.id, role }),
@@ -146,7 +146,7 @@ export default function AddTeamMember({
     if (!confirm('Видалити цього учасника з команди?')) return
 
     try {
-      const res = await fetch(`/api/teams/${teamId}/members?userId=${userId}`, {
+      const res = await fetch(`/api/teams/${teamSlug}/members?userId=${userId}`, {
         method: 'DELETE',
       })
 

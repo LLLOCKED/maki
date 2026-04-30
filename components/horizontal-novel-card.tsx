@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star, BookText } from 'lucide-react'
+import { AlertTriangle, BookOpen, BookText, Star } from 'lucide-react'
 
 interface HorizontalNovelCardProps {
   novel: {
@@ -13,8 +13,10 @@ interface HorizontalNovelCardProps {
     coverUrl: string | null
     averageRating: number
     genres: { genre: { name: string; slug: string } }[]
-    chapters?: { id: string; title: string; number: number; createdAt: Date; teamId: string | null }[]
+    chapters?: { id: string; title: string; number: number; volume: number | null; createdAt: Date; teamId: string | null; team: { slug: string; name: string } | null }[]
     authors?: { author: { id: string; name: string } }[]
+    contentWarnings?: string[]
+    isExplicit?: boolean
   }
 }
 
@@ -32,8 +34,10 @@ function formatDate(date: Date): string {
 
 export default function HorizontalNovelCard({ novel }: HorizontalNovelCardProps) {
   const latestChapter = novel.chapters?.[0]
+  const volStr = latestChapter?.volume ? `${latestChapter.volume}.` : ''
+  const teamPath = latestChapter?.team?.slug ? `/${latestChapter.team.slug}` : ''
   const cardHref = latestChapter
-    ? `/read/${novel.slug}/${latestChapter.number}?chapter=${latestChapter.id}`
+    ? `/read/${novel.slug}/${volStr}${latestChapter.number}${teamPath}`
     : `/novel/${novel.slug}`
 
   const authorNames = novel.authors?.map((a) => a.author.name).join(', ') || ''
@@ -47,11 +51,29 @@ export default function HorizontalNovelCard({ novel }: HorizontalNovelCardProps)
               src={novel.coverUrl}
               alt={novel.title}
               fill
+              sizes="(min-width: 640px) 160px, 128px"
+              loading="eager"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-3xl">📚</span>
+              <BookOpen className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+            </div>
+          )}
+          {novel.isExplicit && (
+            <div className="absolute top-2 left-2">
+              <span className="px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
+                18+
+              </span>
+            </div>
+          )}
+          {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+            <div className="absolute top-2 right-2 flex flex-col gap-1">
+              {novel.contentWarnings.slice(0, 2).map((warning) => (
+                <span key={warning} className="px-1.5 py-0.5 text-xs text-white bg-red-500 rounded">
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                </span>
+              ))}
             </div>
           )}
         </div>

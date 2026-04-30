@@ -1,5 +1,14 @@
-import { PrismaClient } from '@prisma/client'
+import {
+  BookmarkStatus,
+  ModerationStatus,
+  NovelStatus,
+  NovelType,
+  PrismaClient,
+  TeamRole,
+  TranslationStatus,
+} from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import 'dotenv/config'
 
 const prisma = new PrismaClient()
 
@@ -46,19 +55,43 @@ async function createTestUsers() {
         name: userData.name,
         image: userData.image,
         passwordHash,
+        emailVerified: new Date(),
       },
       create: {
         name: userData.name,
         email: userData.email,
         image: userData.image,
         passwordHash,
+        role: userData.email === 'alex@test.com' ? 'ADMIN' : 'USER',
+        emailVerified: new Date(),
       },
     })
     createdUsers.push(user)
   }
 
+  // Ensure admin user exists for moderation
+  const adminEmail = 'admin@honni.local'
+  const adminPasswordHash = await bcrypt.hash('admin123', 12)
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      name: 'Адмін',
+      role: 'ADMIN',
+      passwordHash: adminPasswordHash,
+      emailVerified: new Date(),
+    },
+    create: {
+      name: 'Адмін',
+      email: adminEmail,
+      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+      passwordHash: adminPasswordHash,
+      role: 'ADMIN',
+      emailVerified: new Date(),
+    },
+  })
+  console.log('Admin user:', adminUser.email)
   console.log('Created test users:', createdUsers.map(u => u.name).join(', '))
-  return createdUsers
+  return [adminUser, ...createdUsers]
 }
 
 async function createForumTopics(users: any[], categories: any[]) {
@@ -114,6 +147,10 @@ async function createForumTopics(users: any[], categories: any[]) {
   ]
 
   const createdTopics = []
+  await prisma.forumTopic.deleteMany({
+    where: { title: { in: topics.map((topic) => topic.title) } },
+  })
+
   for (const topicData of topics) {
     const category = categories.find(c => c.slug === topicData.categorySlug)
     const user = users[topicData.userIndex]
@@ -124,6 +161,7 @@ async function createForumTopics(users: any[], categories: any[]) {
         content: topicData.content,
         userId: user.id,
         categoryId: category.id,
+        moderationStatus: ModerationStatus.APPROVED,
       },
     })
     createdTopics.push(topic)
@@ -220,6 +258,13 @@ async function createNovelComments(users: any[], novels: any[]) {
   ]
 
   const createdComments = []
+  await prisma.comment.deleteMany({
+    where: {
+      userId: { in: users.map((user) => user.id) },
+      novelId: { in: novels.map((novel) => novel.id) },
+    },
+  })
+
   for (const commentData of commentsData) {
     const comment = await prisma.comment.create({
       data: {
@@ -233,6 +278,161 @@ async function createNovelComments(users: any[], novels: any[]) {
 
   console.log('Created novel comments:', createdComments.length)
   return createdComments
+}
+
+async function createAnnouncements() {
+  const announcements = [
+    {
+      title: 'Добірка тижня: магія, пригоди та нові світи',
+      description: 'Почніть з популярних тайтлів і знайдіть історію для вечірнього читання.',
+      posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&h=500&fit=crop',
+      linkUrl: '/catalog',
+      linkType: 'page',
+      tag: 'featured',
+      sortOrder: 1,
+    },
+    {
+      title: 'Нова глава Магістра неведення',
+      description: 'Герой робить перші кроки у світі, де магія вирішує все.',
+      posterUrl: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?w=1200&h=500&fit=crop',
+      linkUrl: '/novel/magister-nevedeniya',
+      linkType: 'novel',
+      tag: 'new',
+      sortOrder: 2,
+    },
+    {
+      title: 'Форум ожив: шукають перекладачів',
+      description: 'Команди обговорюють нові проєкти та набирають учасників.',
+      posterUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200&h=500&fit=crop',
+      linkUrl: '/forum',
+      linkType: 'forum',
+      tag: 'popular',
+      sortOrder: 3,
+    },
+  ]
+
+  await prisma.announcement.deleteMany({
+    where: { title: { in: announcements.map((announcement) => announcement.title) } },
+  })
+
+  await prisma.announcement.createMany({ data: announcements })
+  console.log('Created announcements:', announcements.length)
+}
+
+async function createTeamMemberships(users: any[], teams: any[]) {
+  const memberships = [
+    { userIndex: 0, teamIndex: 0, role: TeamRole.owner },
+    { userIndex: 1, teamIndex: 0, role: TeamRole.admin },
+    { userIndex: 2, teamIndex: 0, role: TeamRole.member },
+    { userIndex: 3, teamIndex: 1, role: TeamRole.owner },
+    { userIndex: 4, teamIndex: 1, role: TeamRole.member },
+    { userIndex: 5, teamIndex: 2, role: TeamRole.owner },
+  ]
+
+  for (const membership of memberships) {
+    await prisma.teamMembership.upsert({
+      where: {
+        userId_teamId: {
+          userId: users[membership.userIndex].id,
+          teamId: teams[membership.teamIndex].id,
+        },
+      },
+      update: { role: membership.role },
+      create: {
+        userId: users[membership.userIndex].id,
+        teamId: teams[membership.teamIndex].id,
+        role: membership.role,
+      },
+    })
+  }
+
+  console.log('Created team memberships:', memberships.length)
+}
+
+async function createUserLibraryData(users: any[], novels: any[]) {
+  const libraryItems = [
+    { userIndex: 0, novelIndex: 0, rating: 5, status: BookmarkStatus.reading, readingPosition: 3 },
+    { userIndex: 0, novelIndex: 1, rating: 4, status: BookmarkStatus.planned, readingPosition: null },
+    { userIndex: 1, novelIndex: 0, rating: 5, status: BookmarkStatus.reading, readingPosition: 5 },
+    { userIndex: 1, novelIndex: 3, rating: 4, status: BookmarkStatus.completed, readingPosition: 8 },
+    { userIndex: 2, novelIndex: 2, rating: 5, status: BookmarkStatus.completed, readingPosition: 10 },
+    { userIndex: 3, novelIndex: 4, rating: 4, status: BookmarkStatus.reading, readingPosition: 2 },
+    { userIndex: 4, novelIndex: 5, rating: 5, status: BookmarkStatus.completed, readingPosition: 7 },
+    { userIndex: 5, novelIndex: 6, rating: 4, status: BookmarkStatus.planned, readingPosition: null },
+  ]
+
+  for (const item of libraryItems) {
+    const user = users[item.userIndex]
+    const novel = novels[item.novelIndex]
+
+    await prisma.rating.upsert({
+      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
+      update: { value: item.rating },
+      create: { userId: user.id, novelId: novel.id, value: item.rating },
+    })
+
+    await prisma.favorite.upsert({
+      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
+      update: {},
+      create: { userId: user.id, novelId: novel.id },
+    })
+
+    await prisma.bookmark.upsert({
+      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
+      update: {
+        status: item.status,
+        readingPosition: item.readingPosition,
+      },
+      create: {
+        userId: user.id,
+        novelId: novel.id,
+        status: item.status,
+        readingPosition: item.readingPosition,
+      },
+    })
+  }
+
+  console.log('Created ratings/favorites/bookmarks:', libraryItems.length)
+}
+
+async function createNotifications(users: any[], novels: any[], teams: any[]) {
+  const notifications = []
+
+  for (const novel of novels.slice(0, 5)) {
+    const chapter = await prisma.chapter.findFirst({
+      where: { novelId: novel.id },
+      orderBy: { number: 'desc' },
+    })
+
+    if (!chapter) continue
+
+    notifications.push({
+      userId: users[0].id,
+      type: 'NEW_CHAPTER',
+      novelId: novel.id,
+      chapterId: chapter.id,
+      teamId: teams[0].id,
+      isRead: false,
+    })
+    notifications.push({
+      userId: users[1].id,
+      type: 'NEW_CHAPTER',
+      novelId: novel.id,
+      chapterId: chapter.id,
+      teamId: teams[1]?.id || teams[0].id,
+      isRead: novel.slug === 'magister-nevedeniya',
+    })
+  }
+
+  await prisma.notification.deleteMany({
+    where: { userId: { in: users.map((user) => user.id) } },
+  })
+
+  if (notifications.length > 0) {
+    await prisma.notification.createMany({ data: notifications })
+  }
+
+  console.log('Created notifications:', notifications.length)
 }
 
 async function main() {
@@ -306,22 +506,22 @@ async function main() {
     prisma.publisher.upsert({
       where: { name: 'Kadokawa' },
       update: {},
-      create: { name: 'Kadokawa' },
+      create: { name: 'Kadokawa', slug: 'kadokawa' },
     }),
     prisma.publisher.upsert({
       where: { name: 'Shueisha' },
       update: {},
-      create: { name: 'Shueisha' },
+      create: { name: 'Shueisha', slug: 'shueisha' },
     }),
     prisma.publisher.upsert({
       where: { name: 'MEDIA FACTORY' },
       update: {},
-      create: { name: 'MEDIA FACTORY' },
+      create: { name: 'MEDIA FACTORY', slug: 'media-factory' },
     }),
     prisma.publisher.upsert({
       where: { name: 'OVERLAP' },
       update: {},
-      create: { name: 'OVERLAP' },
+      create: { name: 'OVERLAP', slug: 'overlap' },
     }),
   ])
 
@@ -330,47 +530,47 @@ async function main() {
     prisma.author.upsert({
       where: { name: 'Алекс Кун' },
       update: {},
-      create: { name: 'Алекс Кун' },
+      create: { name: 'Алекс Кун', slug: 'aleks-kun' },
     }),
     prisma.author.upsert({
       where: { name: 'Риэ Ямагато' },
       update: {},
-      create: { name: 'Риэ Ямагато' },
+      create: { name: 'Риэ Ямагато', slug: 'rie-yamagato' },
     }),
     prisma.author.upsert({
       where: { name: 'Коджи Огура' },
       update: {},
-      create: { name: 'Коджи Огура' },
+      create: { name: 'Коджи Огура', slug: 'kodzhi-ogura' },
     }),
     prisma.author.upsert({
       where: { name: 'Юки Ариму' },
       update: {},
-      create: { name: 'Юки Ариму' },
+      create: { name: 'Юки Ариму', slug: 'yuki-arimu' },
     }),
     prisma.author.upsert({
       where: { name: 'Рю Ханада' },
       update: {},
-      create: { name: 'Рю Ханада' },
+      create: { name: 'Рю Ханада', slug: 'ryu-hanada' },
     }),
     prisma.author.upsert({
       where: { name: 'Мина Кото' },
       update: {},
-      create: { name: 'Мина Кото' },
+      create: { name: 'Мина Кото', slug: 'mina-koto' },
     }),
     prisma.author.upsert({
       where: { name: 'Дайго Кавамура' },
       update: {},
-      create: { name: 'Дайго Кавамура' },
+      create: { name: 'Дайго Кавамура', slug: 'daigo-kawamura' },
     }),
     prisma.author.upsert({
       where: { name: 'Юсуке Мори' },
       update: {},
-      create: { name: 'Юсуке Мори' },
+      create: { name: 'Юсуке Мори', slug: 'yusuke-mori' },
     }),
     prisma.author.upsert({
       where: { name: 'Акира Фуджи' },
       update: {},
-      create: { name: 'Акира Фуджи' },
+      create: { name: 'Акира Фуджи', slug: 'akira-fudzhi' },
     }),
   ])
 
@@ -379,17 +579,61 @@ async function main() {
     prisma.team.upsert({
       where: { name: 'MangaLib' },
       update: {},
-      create: { name: 'MangaLib', description: 'Лучший перевод манги и новел' },
+      create: { name: 'MangaLib', slug: 'mangalib', description: 'Лучший перевод манги и новел' },
     }),
     prisma.team.upsert({
       where: { name: 'Hikari' },
       update: {},
-      create: { name: 'Hikari', description: 'Японская классика и современные работы' },
+      create: { name: 'Hikari', slug: 'hikari', description: 'Японская классика и современные работы' },
     }),
     prisma.team.upsert({
       where: { name: 'Natsume' },
       update: {},
-      create: { name: 'Natsume', description: 'Исекаи и фэнтези' },
+      create: { name: 'Natsume', slug: 'natsume', description: 'Исекаи и фэнтези' },
+    }),
+  ])
+
+  // Create tags
+  const tags = await Promise.all([
+    prisma.tag.upsert({
+      where: { slug: 'adventures' },
+      update: {},
+      create: { name: 'Пригоди', slug: 'adventures' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'everyday-life' },
+      update: {},
+      create: { name: 'Повсякденність', slug: 'everyday-life' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'school' },
+      update: {},
+      create: { name: 'Школа', slug: 'school' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'historical' },
+      update: {},
+      create: { name: 'Історичний', slug: 'historical' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'psychology' },
+      update: {},
+      create: { name: 'Психологія', slug: 'psychology' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'strong-hero' },
+      update: {},
+      create: { name: 'Сильний герой', slug: 'strong-hero' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'slow-pace' },
+      update: {},
+      create: { name: 'Повільний темп', slug: 'slow-pace' },
+    }),
+    prisma.tag.upsert({
+      where: { slug: 'comedy' },
+      update: {},
+      create: { name: 'Комедія', slug: 'comedy' },
     }),
   ])
 
@@ -405,11 +649,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=600&fit=crop',
       averageRating: 4.8,
       viewCount: 15420,
-      type: 'ORIGINAL',
-      status: 'ONGOING',
-      translationStatus: 'TRANSLATING',
+      type: NovelType.ORIGINAL,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.TRANSLATING,
       releaseYear: 2023,
       genres: { isekai: true, fantasy: true },
+      tags: ['adventures', 'strong-hero', 'school'],
       publishers: ['OVERLAP'],
     },
     {
@@ -422,11 +667,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=600&fit=crop',
       averageRating: 4.6,
       viewCount: 12350,
-      type: 'JAPAN',
-      status: 'ONGOING',
-      translationStatus: 'TRANSLATING',
+      type: NovelType.JAPAN,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.TRANSLATING,
       releaseYear: 2022,
       genres: { isekai: true, comedy: true },
+      tags: ['adventures', 'slow-pace', 'everyday-life'],
       publishers: ['Kadokawa'],
     },
     {
@@ -439,11 +685,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?w=400&h=600&fit=crop',
       averageRating: 4.5,
       viewCount: 9870,
-      type: 'JAPAN',
-      status: 'COMPLETED',
-      translationStatus: 'COMPLETED',
+      type: NovelType.JAPAN,
+      status: NovelStatus.COMPLETED,
+      translationStatus: TranslationStatus.COMPLETED,
       releaseYear: 2021,
       genres: { action: true, fantasy: true },
+      tags: ['strong-hero', 'historical'],
       publishers: ['Shueisha'],
     },
     {
@@ -456,11 +703,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop',
       averageRating: 4.3,
       viewCount: 8560,
-      type: 'JAPAN',
-      status: 'ONGOING',
-      translationStatus: 'TRANSLATING',
+      type: NovelType.JAPAN,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.TRANSLATING,
       releaseYear: 2023,
       genres: { romance: true, fantasy: true, comedy: true },
+      tags: ['school', 'everyday-life'],
       publishers: ['MEDIA FACTORY'],
     },
     {
@@ -473,11 +721,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=600&fit=crop',
       averageRating: 4.7,
       viewCount: 11200,
-      type: 'JAPAN',
-      status: 'ONGOING',
-      translationStatus: 'HIATUS',
+      type: NovelType.JAPAN,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.HIATUS,
       releaseYear: 2022,
       genres: { action: true, fantasy: true, drama: true },
+      tags: ['adventures', 'strong-hero'],
       publishers: ['OVERLAP'],
     },
     {
@@ -490,11 +739,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=600&fit=crop',
       averageRating: 4.4,
       viewCount: 6340,
-      type: 'JAPAN',
-      status: 'COMPLETED',
-      translationStatus: 'COMPLETED',
+      type: NovelType.JAPAN,
+      status: NovelStatus.COMPLETED,
+      translationStatus: TranslationStatus.COMPLETED,
       releaseYear: 2021,
       genres: { romance: true, drama: true },
+      tags: ['everyday-life', 'slow-pace'],
       publishers: ['Kadokawa'],
     },
     {
@@ -507,11 +757,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&h=600&fit=crop',
       averageRating: 4.6,
       viewCount: 7890,
-      type: 'JAPAN',
-      status: 'ONGOING',
-      translationStatus: 'TRANSLATING',
+      type: NovelType.JAPAN,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.TRANSLATING,
       releaseYear: 2023,
       genres: { action: true, fantasy: true },
+      tags: ['adventures', 'strong-hero', 'psychology'],
       publishers: ['Shueisha'],
     },
     {
@@ -524,11 +775,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=600&fit=crop',
       averageRating: 4.5,
       viewCount: 5670,
-      type: 'JAPAN',
-      status: 'SUSPENDED',
-      translationStatus: 'DROPPED',
+      type: NovelType.JAPAN,
+      status: NovelStatus.SUSPENDED,
+      translationStatus: TranslationStatus.DROPPED,
       releaseYear: 2022,
       genres: { action: true, fantasy: true },
+      tags: ['school', 'strong-hero'],
       publishers: ['MEDIA FACTORY'],
     },
     {
@@ -541,11 +793,12 @@ async function main() {
       coverUrl: 'https://images.unsplash.com/photo-1516414447565-b14be0adf13e?w=400&h=600&fit=crop',
       averageRating: 4.2,
       viewCount: 4320,
-      type: 'JAPAN',
-      status: 'ONGOING',
-      translationStatus: 'TRANSLATING',
+      type: NovelType.JAPAN,
+      status: NovelStatus.ONGOING,
+      translationStatus: TranslationStatus.TRANSLATING,
       releaseYear: 2023,
       genres: { fantasy: true, comedy: true },
+      tags: ['adventures', 'slow-pace', 'psychology'],
       publishers: ['OVERLAP'],
     },
   ]
@@ -553,6 +806,7 @@ async function main() {
   for (const novelData of novelsData) {
     const {
       genres: novelGenres,
+      tags: novelTags,
       publishers: novelPublishers,
       authorName,
       ...novel
@@ -560,8 +814,14 @@ async function main() {
 
     const createdNovel = await prisma.novel.upsert({
       where: { slug: novel.slug },
-      update: novel,
-      create: novel,
+      update: {
+        ...novel,
+        moderationStatus: ModerationStatus.APPROVED,
+      },
+      create: {
+        ...novel,
+        moderationStatus: ModerationStatus.APPROVED,
+      },
     })
 
     // Link genres
@@ -581,6 +841,28 @@ async function main() {
             genreId: genre.id,
           },
         })
+      }
+    }
+
+    // Link tags
+    if (novelTags) {
+      for (const tagSlug of novelTags) {
+        const tag = tags.find((t) => t.slug === tagSlug)
+        if (tag) {
+          await prisma.novelTag.upsert({
+            where: {
+              novelId_tagId: {
+                novelId: createdNovel.id,
+                tagId: tag.id,
+              },
+            },
+            update: {},
+            create: {
+              novelId: createdNovel.id,
+              tagId: tag.id,
+            },
+          })
+        }
       }
     }
 
@@ -626,6 +908,10 @@ async function main() {
     const chapterCount = Math.floor(Math.random() * 10) + 5
     const team = teams[Math.floor(Math.random() * teams.length)]
 
+    await prisma.chapter.deleteMany({
+      where: { novelId: createdNovel.id },
+    })
+
     for (let i = 1; i <= chapterCount; i++) {
       await prisma.chapter.create({
         data: {
@@ -634,6 +920,7 @@ async function main() {
           title: `Глава ${i}`,
           number: i,
           content: generateChapterContent(i),
+          moderationStatus: ModerationStatus.APPROVED,
         },
       })
     }
@@ -644,10 +931,15 @@ async function main() {
   }
 
   // Get all created novels for comments
-  const allNovels = await prisma.novel.findMany()
+  const allNovels = await Promise.all(
+    novelsData.map((novel) => prisma.novel.findUniqueOrThrow({ where: { slug: novel.slug } }))
+  )
 
   // Create test users
   const users = await createTestUsers()
+  await createTeamMemberships(users, teams)
+  await createAnnouncements()
+  await createUserLibraryData(users, allNovels)
 
   // Create forum topics and comments
   const topics = await createForumTopics(users, forumCategories)
@@ -656,6 +948,7 @@ async function main() {
 
   // Create novel comments
   await createNovelComments(users, allNovels)
+  await createNotifications(users, allNovels, teams)
 }
 
 function generateChapterContent(chapterNum: number): string {

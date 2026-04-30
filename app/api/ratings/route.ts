@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { isValidationResponse, parseJsonBody, ratingSchema } from '@/lib/validation'
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const { novelId, value } = await request.json()
-
-    if (!novelId || !value || value < 1 || value > 5) {
-      return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
-    }
+    const body = await parseJsonBody(request, ratingSchema)
+    if (isValidationResponse(body)) return body
+    const { novelId, value } = body
 
     // Upsert rating
     const rating = await prisma.rating.upsert({

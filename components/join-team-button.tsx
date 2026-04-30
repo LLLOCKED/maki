@@ -5,17 +5,17 @@ import { Button } from '@/components/ui/button'
 import { UserPlus, Check } from 'lucide-react'
 
 interface JoinTeamButtonProps {
-  teamId: string
+  teamSlug: string
 }
 
-export default function JoinTeamButton({ teamId }: JoinTeamButtonProps) {
+export default function JoinTeamButton({ teamSlug }: JoinTeamButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [joined, setJoined] = useState(false)
 
   const handleJoin = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/teams/${teamId}/join`, {
+      const res = await fetch(`/api/teams/${teamSlug}/join`, {
         method: 'POST',
       })
       if (res.ok) {

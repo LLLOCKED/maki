@@ -32,17 +32,22 @@ describe('buildNovelWhereClause', () => {
 
   it('should parse genres from comma-separated string', () => {
     const result = buildNovelWhereClause({ genres: 'g1,g2,g3' })
-    expect(result.genres).toEqual({ some: { genreId: { in: ['g1', 'g2', 'g3'] } } })
+    expect(result.genres).toEqual({ some: { genre: { slug: { in: ['g1', 'g2', 'g3'] } } } })
   })
 
   it('should parse tags from comma-separated string', () => {
     const result = buildNovelWhereClause({ tags: 't1,t2' })
-    expect(result.tags).toEqual({ some: { tagId: { in: ['t1', 't2'] } } })
+    expect(result.tags).toEqual({ some: { tag: { slug: { in: ['t1', 't2'] } } } })
   })
 
   it('should parse authors from comma-separated string', () => {
     const result = buildNovelWhereClause({ authors: 'a1,a2' })
-    expect(result.authors).toEqual({ some: { authorId: { in: ['a1', 'a2'] } } })
+    expect(result.authors).toEqual({ some: { author: { slug: { in: ['a1', 'a2'] } } } })
+  })
+
+  it('should parse publishers from comma-separated string', () => {
+    const result = buildNovelWhereClause({ publishers: 'p1,p2' })
+    expect(result.publishers).toEqual({ some: { publisher: { slug: { in: ['p1', 'p2'] } } } })
   })
 
   it('should include type filter when provided', () => {
@@ -77,6 +82,6 @@ describe('buildNovelWhereClause', () => {
 
   it('should filter out empty genre/tag/author values', () => {
     const result = buildNovelWhereClause({ genres: 'g1,,g3' })
-    expect(result.genres).toEqual({ some: { genreId: { in: ['g1', 'g3'] } } })
+    expect(result.genres).toEqual({ some: { genre: { slug: { in: ['g1', 'g3'] } } } })
   })
 })

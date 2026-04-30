@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { createCommentSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -87,25 +88,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const body = await request.json()
-    const { content, novelId, chapterId, parentId } = body
+    const body = await parseJsonBody(request, createCommentSchema)
+    if (isValidationResponse(body)) return body
 
-    if (!content || (!novelId && !chapterId)) {
-      return NextResponse.json(
-        { error: 'Content and novelId or chapterId are required' },
-        { status: 400 }
-      )
-    }
+    const { content, novelId, chapterId, parentId } = body
 
     // If parentId is provided, check that parent comment exists
     if (parentId) {

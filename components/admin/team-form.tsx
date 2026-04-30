@@ -28,7 +28,7 @@ export default function TeamForm() {
 
       if (res.ok) {
         const team = await res.json()
-        router.push('/settings')
+        router.push(`/team/${team.slug}`)
         router.refresh()
       } else {
         const error = await res.json()

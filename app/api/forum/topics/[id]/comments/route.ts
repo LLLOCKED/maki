@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { forumCommentSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const { id } = await params
+  const session = await requireUser()
+  if (isAuthResponse(session)) return session
 
   try {
-    const topicId = params.id
-    const { content, parentId } = await request.json()
-
-    if (!content) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 })
-    }
+    const topicId = id
+    const body = await parseJsonBody(request, forumCommentSchema)
+    if (isValidationResponse(body)) return body
+    const { content, parentId } = body
 
     // Check if topic exists
     const topic = await prisma.forumTopic.findUnique({

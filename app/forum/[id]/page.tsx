@@ -8,7 +8,7 @@ import ForumCommentSection from '@/components/forum/forum-comment-section'
 import TopicVoteButtons from '@/components/forum/topic-vote-buttons'
 
 interface TopicPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 function formatDate(date: Date): string {
@@ -84,14 +84,16 @@ async function getTopic(id: string) {
 }
 
 export async function generateMetadata({ params }: TopicPageProps) {
-  const topic = await getTopic(params.id)
+  const { id } = await params
+  const topic = await getTopic(id)
   if (!topic) return { title: 'Тема не найдена' }
   return { title: `${topic.title} — Форум` }
 }
 
 export default async function TopicPage({ params }: TopicPageProps) {
+  const { id } = await params
   const session = await auth()
-  const topic = await getTopic(params.id)
+  const topic = await getTopic(id)
 
   if (!topic) {
     notFound()

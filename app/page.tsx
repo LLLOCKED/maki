@@ -1,10 +1,14 @@
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import SmallNovelCard from '@/components/small-novel-card'
 import PosterNovelCard from '@/components/poster-novel-card'
 import ForumTopicCard from '@/components/forum/forum-topic-card'
 import NovelsList from '@/components/novels-list'
+import AnnouncementCarousel from '@/components/announcement-carousel'
+import AnnouncementBackground from '@/components/announcement-background'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Flame, MessageCircle, TrendingUp, Tag } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { BookOpen, Clock, Flame, MessageCircle, TrendingUp, Tag } from 'lucide-react'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -28,8 +32,12 @@ async function getNovels(page: number = 0, limit: number = 8) {
           id: true,
           title: true,
           number: true,
+          volume: true,
           createdAt: true,
           teamId: true,
+          team: {
+            select: { slug: true, name: true },
+          },
         },
       },
       authors: {
@@ -43,6 +51,10 @@ async function getNovels(page: number = 0, limit: number = 8) {
         },
       },
     },
+    orderBy: [
+      { title: 'asc' },
+      { id: 'asc' },
+    ],
     skip,
     take: limit,
   })
@@ -93,6 +105,7 @@ async function getLatestNovels() {
       slug: true,
       coverUrl: true,
       type: true,
+      isExplicit: true,
       createdAt: true,
       chapters: {
         where: { moderationStatus: 'APPROVED' },
@@ -138,7 +151,10 @@ async function getTotalNovelsCount() {
 
 async function getPopularTags() {
   return prisma.tag.findMany({
-    include: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
       _count: {
         select: { novels: true },
       },
@@ -148,8 +164,71 @@ async function getPopularTags() {
   })
 }
 
+function formatChapterUrl(novelSlug: string, number: number, volume: number | null, teamSlug: string | null) {
+  const volumePath = volume ? `${volume}.` : ''
+  const teamPath = teamSlug ? `/${teamSlug}` : ''
+  return `/read/${novelSlug}/${volumePath}${number}${teamPath}`
+}
+
+async function getContinueReading(userId?: string) {
+  if (!userId) return []
+
+  const bookmarks = await prisma.bookmark.findMany({
+    where: {
+      userId,
+      status: 'reading',
+      readingPosition: { not: null },
+      novel: { moderationStatus: 'APPROVED' },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 6,
+    include: {
+      novel: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          coverUrl: true,
+          chapters: {
+            where: { moderationStatus: 'APPROVED' },
+            orderBy: [{ volume: 'asc' }, { number: 'asc' }],
+            select: {
+              id: true,
+              title: true,
+              number: true,
+              volume: true,
+              team: { select: { slug: true } },
+            },
+          },
+          _count: { select: { chapters: true } },
+        },
+      },
+    },
+  })
+
+  return bookmarks
+    .map((bookmark) => {
+      const chapter =
+        bookmark.novel.chapters.find((item) => item.number === bookmark.readingPosition) ||
+        bookmark.novel.chapters[0]
+
+      if (!chapter) return null
+
+      return {
+        id: bookmark.id,
+        updatedAt: bookmark.updatedAt,
+        readingPosition: bookmark.readingPosition,
+        novel: bookmark.novel,
+        chapter,
+        href: formatChapterUrl(bookmark.novel.slug, chapter.number, chapter.volume, chapter.team?.slug || null),
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+}
+
 export default async function HomePage() {
-  const [popularNovels, discussedNovels, latestForPosters, topics, totalNovels, initialNovels, popularTags] = await Promise.all([
+  const session = await auth()
+  const [popularNovels, discussedNovels, latestForPosters, topics, totalNovels, initialNovels, popularTags, continueReading] = await Promise.all([
     getPopularNovels(),
     getDiscussedNovels(),
     getLatestNovels(),
@@ -157,6 +236,7 @@ export default async function HomePage() {
     getTotalNovelsCount(),
     getNovels(0, 8),
     getPopularTags(),
+    getContinueReading(session?.user?.id),
   ])
 
   // Top 5 by vote score
@@ -181,164 +261,205 @@ export default async function HomePage() {
   })
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex items-center gap-3">
-        <BookOpen className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">honni</h1>
-          <p className="text-muted-foreground">
-            {totalNovels} творів у бібліотеці
-          </p>
-        </div>
+    <>
+      {/* <AnnouncementBackground /> */}
+      <div className="overflow-hidden">
+        <AnnouncementCarousel />
       </div>
+      <div className="container mx-auto px-4 py-8">
 
-      {totalNovels === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <span className="text-6xl">📚</span>
-          <h2 className="mt-4 text-xl font-semibold">Бібліотека пуста</h2>
-          <p className="mt-2 text-muted-foreground">
-            Новели скоро з&apos;вляться. Слідкуйте за оновленнями!
+        <div className="mb-8">
+          <p className="text-muted-foreground">
+            {totalNovels} творів
           </p>
         </div>
-      ) : (
-        <>
-          {/* Horizontal Poster Section */}
-          {latestSorted.length > 0 && (
-            <div className="mb-8">
-              <div className="mb-4 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Нові тайтли</h2>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                {latestSorted.map((novel) => (
-                  <PosterNovelCard
-                    key={novel.id}
-                    novel={{
-                      id: novel.id,
-                      title: novel.title,
-                      slug: novel.slug,
-                      coverUrl: novel.coverUrl,
-                      authors: novel.authors.map(a => a.author.name),
-                      type: novel.type,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-7">
-            {/* Left Column: Novel Rankings */}
-            <div className="lg:col-span-2">
-              {/* Popular Novels */}
-              <div className="mb-6">
-                <div className="mb-3 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-500" />
-                  <h2 className="text-lg font-semibold">Популярні тайтли</h2>
+        {totalNovels === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <BookOpen className="h-16 w-16 text-muted-foreground" aria-hidden="true" />
+            <h2 className="mt-4 text-xl font-semibold">Бібліотека пуста</h2>
+            <p className="mt-2 text-muted-foreground">
+              Новели скоро з&apos;вляться. Слідкуйте за оновленнями!
+            </p>
+          </div>
+        ) : (
+          <>
+            {continueReading.length > 0 && (
+              <section className="mb-8">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-semibold">Продовжити читання</h2>
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/history">Історія</Link>
+                  </Button>
                 </div>
-                <div className="flex flex-col gap-2">
-                  {popularNovels.map((novel) => (
-                    <SmallNovelCard
-                      key={novel.id}
-                      novel={{
-                        id: novel.id,
-                        title: novel.title,
-                        slug: novel.slug,
-                        coverUrl: novel.coverUrl,
-                        viewCount: novel.viewCount,
-                      }}
-                      variant="rating"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Discussed Novels */}
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-blue-500" />
-                  <h2 className="text-lg font-semibold">Обговорювані тайтли</h2>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {discussedNovels.map((novel) => (
-                    <SmallNovelCard
-                      key={novel.id}
-                      novel={{
-                        id: novel.id,
-                        title: novel.title,
-                        slug: novel.slug,
-                        coverUrl: novel.coverUrl,
-                        _count: novel._count,
-                      }}
-                      variant="discussed"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Middle Column: All Novels with infinite scroll */}
-            <div className="lg:col-span-3">
-              <NovelsList initialNovels={initialNovels as any} totalCount={totalNovels} />
-            </div>
-
-            {/* Right Column: Forum Topics */}
-            <div className="lg:col-span-2">
-              {/* Popular Topics */}
-              <div className="mb-6">
-                <div className="mb-3 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-500" />
-                  <h2 className="text-lg font-semibold">Популярні теми</h2>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {topTopics.map((topic) => (
-                    <ForumTopicCard
-                      key={topic.id}
-                      topic={topic as any}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Most Discussed Topics */}
-              <div className="mb-6">
-                <div className="mb-3 flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-green-500" />
-                  <h2 className="text-lg font-semibold">Обговорювані теми</h2>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {mostDiscussedTopics.map((topic) => (
-                    <ForumTopicCard
-                      key={topic.id}
-                      topic={topic as any}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Popular Tags */}
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <Tag className="h-5 w-5 text-purple-500" />
-                  <h2 className="text-lg font-semibold">Теги</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {popularTags.map((tag) => (
-                    <Link key={tag.id} href={`/catalog?tags=${tag.id}`}>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-accent">
-                        {tag.name}
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          {tag._count.novels}
-                        </span>
-                      </Badge>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {continueReading.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className="flex items-center gap-3 rounded-md border p-3 transition-colors hover:bg-muted"
+                    >
+                      <div className="relative flex h-16 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                        {item.novel.coverUrl ? (
+                          <img src={item.novel.coverUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <BookOpen className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-1 text-sm font-medium">{item.novel.title}</p>
+                        <p className="line-clamp-1 text-xs text-muted-foreground">
+                          Розділ {item.chapter.number}: {item.chapter.title}
+                        </p>
+                      </div>
                     </Link>
                   ))}
                 </div>
+              </section>
+            )}
+
+            {/* Horizontal Poster Section */}
+            {latestSorted.length > 0 && (
+              <div className="mb-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Нові тайтли</h2>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {latestSorted.map((novel) => (
+                    <PosterNovelCard
+                      key={novel.id}
+                      novel={{
+                        id: novel.id,
+                        title: novel.title,
+                        slug: novel.slug,
+                        coverUrl: novel.coverUrl,
+                        authors: novel.authors.map(a => a.author.name),
+                        type: novel.type,
+                        isExplicit: novel.isExplicit,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-7">
+              {/* Left Column: Novel Rankings */}
+              <div className="lg:col-span-2">
+                {/* Popular Novels */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                    <h2 className="text-lg font-semibold">Популярні тайтли</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {popularNovels.map((novel) => (
+                      <SmallNovelCard
+                        key={novel.id}
+                        novel={{
+                          id: novel.id,
+                          title: novel.title,
+                          slug: novel.slug,
+                          coverUrl: novel.coverUrl,
+                          viewCount: novel.viewCount,
+                        }}
+                        variant="rating"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Discussed Novels */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-blue-500" />
+                    <h2 className="text-lg font-semibold">Обговорювані тайтли</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {discussedNovels.map((novel) => (
+                      <SmallNovelCard
+                        key={novel.id}
+                        novel={{
+                          id: novel.id,
+                          title: novel.title,
+                          slug: novel.slug,
+                          coverUrl: novel.coverUrl,
+                          _count: novel._count,
+                        }}
+                        variant="discussed"
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Column: All Novels with infinite scroll */}
+              <div className="lg:col-span-3">
+                <NovelsList initialNovels={initialNovels as any} totalCount={totalNovels} />
+              </div>
+
+              {/* Right Column: Forum Topics */}
+              <div className="lg:col-span-2">
+                {/* Popular Topics */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-orange-500" />
+                    <h2 className="text-lg font-semibold">Популярні теми</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {topTopics.map((topic) => (
+                      <ForumTopicCard
+                        key={topic.id}
+                        topic={topic as any}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Most Discussed Topics */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-green-500" />
+                    <h2 className="text-lg font-semibold">Обговорювані теми</h2>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {mostDiscussedTopics.map((topic) => (
+                      <ForumTopicCard
+                        key={topic.id}
+                        topic={topic as any}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Popular Tags */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-purple-500" />
+                    <h2 className="text-lg font-semibold">Теги</h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {popularTags.map((tag) => (
+                      <Link key={tag.id} href={`/catalog?tags=${tag.slug}`}>
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent">
+                          {tag.name}
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            {tag._count.novels}
+                          </span>
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }

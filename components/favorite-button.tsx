@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface FavoriteButtonProps {
@@ -52,8 +52,8 @@ export default function FavoriteButton({ novelId, initialIsFavorited = false }: 
       disabled={isLoading}
       className="gap-2"
     >
-      <Heart className={`h-4 w-4 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
-      {isFavorited ? 'В улюблених' : 'В улюблені'}
+      <Bell className={`h-4 w-4 ${isFavorited ? 'fill-primary text-primary' : ''}`} />
+      {isFavorited ? 'Стежите' : 'Стежити'}
     </Button>
   )
 }

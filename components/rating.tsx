@@ -55,7 +55,7 @@ export default function Rating({ novelId, initialRating, userRating: initialUser
                   ? 'fill-yellow-400 text-yellow-400'
                   : star <= rating
                   ? 'fill-yellow-400/50 text-yellow-400/50'
-                  : 'text-muted'
+                  : 'text-muted-foreground'
               }`}
             />
           </button>

@@ -100,6 +100,15 @@ export default function NovelModerationList({ novels }: NovelModerationProps) {
                     Переглянути
                   </Link>
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                >
+                  <Link href={`/admin/novels/${novel.slug}/edit`}>
+                    Редагувати
+                  </Link>
+                </Button>
               </div>
               <Button
                 size="sm"

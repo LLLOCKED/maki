@@ -1,15 +1,17 @@
 import { Suspense } from 'react'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-types'
 import CatalogCard from '@/components/catalog-card'
 import CatalogFilters from '@/components/catalog-filters'
 import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
+import { BookOpen } from 'lucide-react'
 
 interface SearchParams {
   search?: string
   genres?: string
   tags?: string
   authors?: string
+  publishers?: string
   type?: string
   status?: string
   translationStatus?: string
@@ -38,18 +40,19 @@ async function getNovels(searchParams: SearchParams) {
   const sortOrder = searchParams.sortOrder || 'asc'
   const where = buildNovelWhereClause(searchParams)
 
-  const orderBy: any = {}
+  const orderBy: any[] = []
   if (sortBy === 'rating') {
-    orderBy.averageRating = sortOrder
+    orderBy.push({ averageRating: sortOrder })
   } else if (sortBy === 'views') {
-    orderBy.viewCount = sortOrder
+    orderBy.push({ viewCount: sortOrder })
   } else if (sortBy === 'year') {
-    orderBy.releaseYear = sortOrder
+    orderBy.push({ releaseYear: sortOrder })
   } else if (sortBy === 'created') {
-    orderBy.createdAt = sortOrder
+    orderBy.push({ createdAt: sortOrder })
   } else {
-    orderBy.title = sortOrder
+    orderBy.push({ title: sortOrder })
   }
+  orderBy.push({ id: 'asc' })
 
   let novels: any[] = []
   let total = 0
@@ -95,7 +98,9 @@ async function getNovels(searchParams: SearchParams) {
         where,
         include: {
           genres: { include: { genre: true } },
+          tags: { include: { tag: true } },
           authors: { include: { author: true } },
+          publishers: { include: { publisher: true } },
           _count: { select: { comments: true } },
         },
         orderBy,
@@ -112,7 +117,7 @@ async function getNovels(searchParams: SearchParams) {
 }
 
 export const metadata = {
-  title: 'Каталог — RanobeHub',
+  title: 'Каталог — honni',
   description: 'Каталог новел: фільтруйте за жанрами, тегами, авторами, статусом та роком випуску',
 }
 
@@ -138,14 +143,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
         {novels.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <span className="text-6xl">📚</span>
+            <BookOpen className="h-16 w-16 text-muted-foreground" aria-hidden="true" />
             <h2 className="mt-4 text-xl font-semibold">Нічого не знайдено</h2>
             <p className="mt-2 text-muted-foreground">
               Спробуйте змінити параметри фільтрації
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {novels.map((novel) => (
               <CatalogCard
                 key={novel.id}

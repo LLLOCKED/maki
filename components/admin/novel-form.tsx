@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -69,6 +70,18 @@ export default function NovelForm() {
   const [status, setStatus] = useState('ONGOING')
   const [translationStatus, setTranslationStatus] = useState('TRANSLATING')
   const [releaseYear, setReleaseYear] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [isExplicit, setIsExplicit] = useState(false)
+  const [contentWarnings, setContentWarnings] = useState<string[]>([])
+  const [donationUrl, setDonationUrl] = useState('')
+
+  const contentWarningOptions = [
+    { value: 'violence', label: 'Насилля', color: 'bg-red-500' },
+    { value: 'gore', label: 'Кров\'яні сцени', color: 'bg-red-700' },
+    { value: 'sexual', label: 'Сексуальний контент', color: 'bg-purple-500' },
+    { value: 'psychological', label: 'Психологічний тиск', color: 'bg-yellow-500' },
+    { value: 'self-harm', label: 'Самогубство/самопошкодження', color: 'bg-orange-500' },
+  ]
 
   // Options
   const [genres, setGenres] = useState<Genre[]>([])
@@ -87,19 +100,38 @@ export default function NovelForm() {
   const [newAuthor, setNewAuthor] = useState('')
   const [newTag, setNewTag] = useState('')
 
+  // Generate URL-friendly slug from title (with Ukrainian transliteration)
+  const generateSlug = (text: string): string => {
+    const translitMap: { [key: string]: string } = {
+      'а': 'a', 'б': 'b', 'в': 'v', 'г': 'h', 'ґ': 'g', 'д': 'd', 'е': 'e', 'є': 'ye',
+      'ж': 'zh', 'з': 'z', 'и': 'y', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k', 'л': 'l',
+      'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+      'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ь': '',
+      'ю': 'yu', 'я': 'ya', ' ': '-', '№': 'n'
+    }
+
+    return text
+      .toLowerCase()
+      .split('')
+      .map(char => {
+        if (translitMap[char] !== undefined) return translitMap[char]
+        return /^[a-z0-9]$/.test(char) ? char : ''
+      })
+      .join('')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
   useEffect(() => {
     // Generate slug from original name (prioritize), fallback to title
     const source = originalName || title
     if (source && !slug) {
-      setSlug(
-        source
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '')
-      )
+      setSlug(generateSlug(source))
     }
+  }, [title, slug, originalName])
 
-    // Fetch options
+  // Fetch options only once on mount
+  useEffect(() => {
     Promise.all([
       fetch('/api/genres').then((r) => r.json()),
       fetch('/api/tags').then((r) => r.json()),
@@ -111,7 +143,7 @@ export default function NovelForm() {
       setPublishers(p)
       setAuthors(a)
     })
-  }, [title, slug, originalName])
+  }, [])
 
   async function handleAddPublisher() {
     if (!newPublisher.trim()) return
@@ -173,7 +205,7 @@ export default function NovelForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title || !slug || !description) return
+    if (!title || !slug || slug.length < 3 || !description) return
 
     setIsLoading(true)
     try {
@@ -215,12 +247,16 @@ export default function NovelForm() {
           tagIds: selectedTags,
           publisherIds: selectedPublishers,
           authorIds: selectedAuthors,
+          sourceUrl: sourceUrl || null,
+          isExplicit,
+          contentWarnings,
+          donationUrl: donationUrl || null,
         }),
       })
 
       if (res.ok) {
-        const novel = await res.json()
-        router.push(`/novel/${novel.slug}`)
+        toast.success('Тайтл відправлено на модерацію')
+        router.push('/')
         router.refresh()
       } else {
         const error = await res.json()
@@ -245,7 +281,7 @@ export default function NovelForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Додавання новели</CardTitle>
+          <CardTitle>Додавання тайтлу</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -277,11 +313,18 @@ export default function NovelForm() {
               <Label>URL-slug *</Label>
               <Input
                 value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                onChange={(e) => {
+                  // Only allow Latin letters and numbers
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                  setSlug(value)
+                }}
                 placeholder="url-friendly-slug"
                 className="mt-1"
                 required
               />
+              {slug.length > 0 && slug.length < 3 && (
+                <p className="mt-1 text-xs text-destructive">Мінімум 3 символи</p>
+              )}
             </div>
 
             <div>
@@ -298,21 +341,26 @@ export default function NovelForm() {
 
             <div>
               <Label>Обкладинка</Label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleCoverChange}
-                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-muted file:text-foreground file:hover:bg-muted/80"
-              />
-              {coverPreview && (
-                <div className="mt-2 relative aspect-[3/4] w-32 overflow-hidden rounded-md border">
-                  <img
-                    src={coverPreview}
-                    alt="Preview"
-                    className="h-full w-full object-cover"
+              <div className="mt-1 flex items-center gap-4">
+                <label className="flex h-10 cursor-pointer items-center rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50">
+                  <span className="mr-2">Обрати файл</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCoverChange}
+                    className="hidden"
                   />
-                </div>
-              )}
+                </label>
+                {coverPreview && (
+                  <div className="relative aspect-[3/4] w-20 overflow-hidden rounded-md border">
+                    <img
+                      src={coverPreview}
+                      alt="Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Selects */}
@@ -371,6 +419,26 @@ export default function NovelForm() {
                 placeholder="2024"
                 type="number"
                 className="mt-1 w-32"
+              />
+            </div>
+
+            <div>
+              <Label>URL джерела перекладу</Label>
+              <Input
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://..."
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label>Посилання на донати</Label>
+              <Input
+                value={donationUrl}
+                onChange={(e) => setDonationUrl(e.target.value)}
+                placeholder="https://..."
+                className="mt-1"
               />
             </div>
 
@@ -536,7 +604,7 @@ export default function NovelForm() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? 'Створення...' : 'Створити нову'}
               </Button>
@@ -545,6 +613,45 @@ export default function NovelForm() {
                   Скасувати
                 </Button>
               </Link>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={isExplicit}
+                  onCheckedChange={(checked) => setIsExplicit(!!checked)}
+                />
+                <span>18+</span>
+              </label>
+            </div>
+
+            {/* Content Warnings */}
+            <div className="space-y-2">
+              <Label>Попередження про контент</Label>
+              <div className="flex flex-wrap gap-2">
+                {contentWarningOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm cursor-pointer border transition-colors ${
+                      contentWarnings.includes(option.value)
+                        ? `${option.color} text-white border-transparent`
+                        : 'border-input bg-background hover:bg-muted/50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={contentWarnings.includes(option.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setContentWarnings([...contentWarnings, option.value])
+                          setIsExplicit(true)
+                        } else {
+                          setContentWarnings(contentWarnings.filter(w => w !== option.value))
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
             </div>
           </form>
         </CardContent>

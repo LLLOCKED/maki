@@ -1,6 +1,9 @@
 .env
+.env*
+.codex
 node_modules/
 .next/
 tsconfig.tsbuildinfo
+*.save
 *.db
 prisma/dev.db

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { ArrowLeft, Eye, Edit } from 'lucide-react'
 import MarkdownToolbar from '@/components/markdown-toolbar'
-import ReactMarkdown from 'react-markdown'
+import SafeMarkdown from '@/components/safe-markdown'
 
 interface Team {
   id: string
@@ -27,6 +27,7 @@ export default function ChapterForm() {
   const [novelId, setNovelId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [number, setNumber] = useState('')
+  const [volume, setVolume] = useState('')
   const [content, setContent] = useState('')
   const [teamId, setTeamId] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
@@ -62,6 +63,7 @@ export default function ChapterForm() {
         body: JSON.stringify({
           title,
           number: parseInt(number),
+          volume: volume ? parseInt(volume) : null,
           content,
           novelId,
           teamId: teamId || null,
@@ -95,7 +97,7 @@ export default function ChapterForm() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="container mx-auto max-w-5xl px-4 py-8">
       <Link
         href={`/novel/${novelSlug}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -119,6 +121,17 @@ export default function ChapterForm() {
                 type="number"
                 className="mt-1 w-32"
                 required
+              />
+            </div>
+
+            <div>
+              <Label>Номер тому</Label>
+              <Input
+                value={volume}
+                onChange={(e) => setVolume(e.target.value)}
+                placeholder="1"
+                type="number"
+                className="mt-1 w-32"
               />
             </div>
 
@@ -168,9 +181,9 @@ export default function ChapterForm() {
                   />
                 )}
                 {isPreview ? (
-                  <div className="prose dark:prose-invert max-w-none p-4">
+                  <div className="markdown-content p-4">
                     {content ? (
-                      <ReactMarkdown>{content}</ReactMarkdown>
+                      <SafeMarkdown>{content}</SafeMarkdown>
                     ) : (
                       <p className="text-muted-foreground">Пусто...</p>
                     )}
