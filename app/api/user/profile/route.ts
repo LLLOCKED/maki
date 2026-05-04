@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isValidationResponse, parseJsonBody, updateProfileSchema } from '@/lib/validation'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { DEFAULT_AVATAR_URL } from '@/lib/default-avatar'
 
 export async function PATCH(request: Request) {
   const session = await requireUser()
@@ -16,7 +17,7 @@ export async function PATCH(request: Request) {
       where: { id: session.user.id },
       data: {
         name,
-        image,
+        image: image || DEFAULT_AVATAR_URL,
       },
       select: {
         id: true,
@@ -29,6 +30,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json(user)
   } catch (error) {
     console.error('Update profile error:', error)
-    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    return NextResponse.json({ error: 'Не вдалось оновити профіль' }, { status: 500 })
   }
 }

@@ -17,6 +17,7 @@ interface Topic {
     id: string
     name: string | null
     image: string | null
+    lastSeen?: Date | string | null
   }
   category: {
     id: string

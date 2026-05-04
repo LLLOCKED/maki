@@ -43,6 +43,8 @@ export default function LoginPage() {
           setError('Будь ласка, підтвердіть свою пошту перед входом')
         } else if (result.error === 'User banned') {
           setError('Ваш акаунт заблоковано')
+        } else if (result.error === 'Too many login attempts') {
+          setError('Забагато спроб входу. Спробуйте пізніше.')
         } else {
           setError('Помилка при вході. Спробуйте ще раз.')
         }

@@ -21,6 +21,7 @@ export function buildNovelWhereClause(params: {
 }): any {
   const where: any = {
     moderationStatus: 'APPROVED',
+    deletedAt: null,
   }
 
   if (params.genres) {

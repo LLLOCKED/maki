@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bookmark } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -30,6 +31,15 @@ const statusColors: Record<string, string> = {
   dropped: 'text-red-500',
 }
 
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
+}
+
 export default function BookmarkButton({ novelId, initialStatus }: BookmarkButtonProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -45,13 +55,18 @@ export default function BookmarkButton({ novelId, initialStatus }: BookmarkButto
         body: JSON.stringify({ novelId, status: newStatus }),
       })
 
-      if (res.ok) {
-        setCurrentStatus(newStatus)
-        setIsOpen(false)
-        router.refresh()
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось оновити закладки'))
+        return
       }
+
+      setCurrentStatus(newStatus)
+      setIsOpen(false)
+      toast.success(`Додано до закладок: ${statusLabels[newStatus]}`)
+      router.refresh()
     } catch (error) {
       console.error('Bookmark error:', error)
+      toast.error('Не вдалось оновити закладки')
     } finally {
       setIsLoading(false)
     }
@@ -64,13 +79,18 @@ export default function BookmarkButton({ novelId, initialStatus }: BookmarkButto
         method: 'DELETE',
       })
 
-      if (res.ok) {
-        setCurrentStatus(null)
-        setIsOpen(false)
-        router.refresh()
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось видалити із закладок'))
+        return
       }
+
+      setCurrentStatus(null)
+      setIsOpen(false)
+      toast.success('Видалено із закладок')
+      router.refresh()
     } catch (error) {
       console.error('Remove bookmark error:', error)
+      toast.error('Не вдалось видалити із закладок')
     } finally {
       setIsLoading(false)
     }

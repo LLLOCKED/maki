@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 
-export type ImagePurpose = 'poster' | 'avatar' | 'team-avatar' | 'team-banner'
+export type ImagePurpose = 'poster' | 'avatar' | 'team-avatar' | 'team-banner' | 'chapter-image'
 
 type ImageConstraints = {
   maxBytes: number
@@ -15,6 +15,7 @@ const constraints: Record<ImagePurpose, ImageConstraints> = {
   avatar: { maxBytes: 2 * 1024 * 1024, maxWidth: 2000, maxHeight: 2000, outputWidth: 512, outputHeight: 512 },
   'team-avatar': { maxBytes: 5 * 1024 * 1024, maxWidth: 2400, maxHeight: 2400, outputWidth: 512, outputHeight: 512 },
   'team-banner': { maxBytes: 10 * 1024 * 1024, maxWidth: 5000, maxHeight: 2500, outputWidth: 1920 },
+  'chapter-image': { maxBytes: 10 * 1024 * 1024, maxWidth: 5000, maxHeight: 5000, outputWidth: 1600 },
 }
 
 const allowedTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'])

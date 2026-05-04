@@ -3,24 +3,24 @@ import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
 
 describe('getOrderBySql', () => {
   it('should return DESC for desc sortOrder', () => {
-    expect(getOrderBySql('rating', 'desc')).toBe('averageRating DESC')
-    expect(getOrderBySql('views', 'desc')).toBe('viewCount DESC')
-    expect(getOrderBySql('year', 'desc')).toBe('releaseYear DESC')
-    expect(getOrderBySql('created', 'desc')).toBe('createdAt DESC')
-    expect(getOrderBySql('title', 'desc')).toBe('title DESC')
+    expect(getOrderBySql('rating', 'desc')).toBe('"averageRating" DESC, "id" ASC')
+    expect(getOrderBySql('views', 'desc')).toBe('"viewCount" DESC, "id" ASC')
+    expect(getOrderBySql('year', 'desc')).toBe('"releaseYear" DESC, "id" ASC')
+    expect(getOrderBySql('created', 'desc')).toBe('"createdAt" DESC, "id" ASC')
+    expect(getOrderBySql('title', 'desc')).toBe('"title" DESC, "id" ASC')
   })
 
   it('should return ASC for asc sortOrder', () => {
-    expect(getOrderBySql('rating', 'asc')).toBe('averageRating ASC')
-    expect(getOrderBySql('views', 'asc')).toBe('viewCount ASC')
-    expect(getOrderBySql('year', 'asc')).toBe('releaseYear ASC')
-    expect(getOrderBySql('created', 'asc')).toBe('createdAt ASC')
-    expect(getOrderBySql('title', 'asc')).toBe('title ASC')
+    expect(getOrderBySql('rating', 'asc')).toBe('"averageRating" ASC, "id" ASC')
+    expect(getOrderBySql('views', 'asc')).toBe('"viewCount" ASC, "id" ASC')
+    expect(getOrderBySql('year', 'asc')).toBe('"releaseYear" ASC, "id" ASC')
+    expect(getOrderBySql('created', 'asc')).toBe('"createdAt" ASC, "id" ASC')
+    expect(getOrderBySql('title', 'asc')).toBe('"title" ASC, "id" ASC')
   })
 
   it('should default to title ASC for unknown sortBy', () => {
-    expect(getOrderBySql('unknown', 'asc')).toBe('title ASC')
-    expect(getOrderBySql('', 'asc')).toBe('title ASC')
+    expect(getOrderBySql('unknown', 'asc')).toBe('"title" ASC, "id" ASC')
+    expect(getOrderBySql('', 'asc')).toBe('"title" ASC, "id" ASC')
   })
 })
 

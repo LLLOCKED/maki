@@ -3,11 +3,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
 
 interface TeamFollowButtonProps {
   teamSlug: string
   initialIsFollowing: boolean
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
 }
 
 export default function TeamFollowButton({ teamSlug, initialIsFollowing }: TeamFollowButtonProps) {
@@ -22,12 +32,18 @@ export default function TeamFollowButton({ teamSlug, initialIsFollowing }: TeamF
         method: isFollowing ? 'DELETE' : 'POST',
       })
 
-      if (!response.ok) return
+      if (!response.ok) {
+        toast.error(await readErrorMessage(response, 'Не вдалось оновити стеження'))
+        return
+      }
 
-      setIsFollowing(!isFollowing)
+      const nextIsFollowing = !isFollowing
+      setIsFollowing(nextIsFollowing)
+      toast.success(nextIsFollowing ? 'Стеження за командою увімкнено' : 'Стеження за командою вимкнено')
       router.refresh()
     } catch (error) {
       console.error('Team follow error:', error)
+      toast.error('Не вдалось оновити стеження')
     } finally {
       setIsLoading(false)
     }

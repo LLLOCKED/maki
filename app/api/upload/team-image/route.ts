@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { uploadToFTP, deleteFromFTP } from '@/lib/ftp'
+import { uploadToStorage, deleteFromStorage } from '@/lib/storage'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
 import { prepareImageUpload } from '@/lib/image-upload'
 import { randomUUID } from 'crypto'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
-function extractFTPPath(url: string): { filename: string; folder: string } | null {
-  if (!url) return null
-  // URL format: https://edge-drive.cdn.express/teams/{teamId}/filename
-  const match = url.match(/\/teams\/([^/]+)\/(.+)$/)
-  if (!match) return null
-  const teamId = match[1]
-  const filename = match[2]
-  return { filename, folder: `teams/${teamId}` }
+function extractR2Path(url: string): string | null {
+  if (!url || !url.includes('cdn.honni.fun')) return null
+  return url.split('/').slice(-2).join('/') // teams/{teamId}/{filename}
 }
 
 export async function POST(request: Request) {
@@ -21,6 +17,15 @@ export async function POST(request: Request) {
     if (isAuthResponse(session)) return session
 
     const userId = session.user.id
+    const limit = rateLimit({
+      key: `upload-team-image:${userId}`,
+      limit: 12,
+      windowMs: 60 * 60 * 1000,
+    })
+    if (!limit.success) {
+      return rateLimitResponse(limit, 'Ви завантажуєте зображення занадто часто. Спробуйте пізніше.')
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const type = formData.get('type') as string // 'avatar' or 'banner'
@@ -63,10 +68,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: image.error }, { status: 400 })
     }
 
-    const ext = image.extension
-    const filename = `${type}_${randomUUID()}.${ext}`
-
-    const url = await uploadToFTP(image.buffer, filename, `teams/${team.id}`)
+    const filename = `teams/${team.id}/${type}_${randomUUID()}.${image.extension}`
+    const url = await uploadToStorage(image.buffer, filename, image.contentType)
 
     // Update database
     const updateData = type === 'avatar' ? { avatarUrl: url } : { bannerUrl: url }
@@ -75,11 +78,11 @@ export async function POST(request: Request) {
       data: updateData,
     })
 
-    // Delete old file from FTP
+    // Delete old file from R2
     if (oldUrl) {
-      const oldPath = extractFTPPath(oldUrl)
+      const oldPath = extractR2Path(oldUrl)
       if (oldPath) {
-        await deleteFromFTP(oldPath.filename, oldPath.folder)
+        await deleteFromStorage(oldPath)
       }
     }
 

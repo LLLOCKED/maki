@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BookOpen, Clock, Search, Trash2 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -61,6 +62,15 @@ const statusColors: Record<BookmarkStatus, string> = {
 }
 
 const statusOrder: BookmarkStatus[] = ['reading', 'planned', 'completed', 'dropped']
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
+}
 
 function formatDate(date: string): string {
   return new Intl.DateTimeFormat('uk-UA', {
@@ -121,30 +131,46 @@ export default function BookmarksLibrary({ initialBookmarks }: BookmarksLibraryP
         }),
       })
 
-      if (!res.ok) return
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось оновити статус'))
+        return
+      }
 
       setBookmarks(prev => prev.map(item => (
         item.id === bookmark.id
           ? { ...item, status, updatedAt: new Date().toISOString() }
           : item
       )))
+      toast.success(`Статус оновлено: ${statusLabels[status]}`)
       router.refresh()
+    } catch (error) {
+      console.error('Bookmark status update error:', error)
+      toast.error('Не вдалось оновити статус')
     } finally {
       setUpdatingId(null)
     }
   }
 
   async function removeBookmark(bookmark: BookmarkItem) {
+    if (!window.confirm(`Видалити "${bookmark.novel.title}" із закладок?`)) return
+
     setUpdatingId(bookmark.id)
     try {
       const res = await fetch(`/api/bookmarks?novelId=${bookmark.novelId}`, {
         method: 'DELETE',
       })
 
-      if (!res.ok) return
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось видалити із закладок'))
+        return
+      }
 
       setBookmarks(prev => prev.filter(item => item.id !== bookmark.id))
+      toast.success('Видалено із закладок')
       router.refresh()
+    } catch (error) {
+      console.error('Bookmark remove error:', error)
+      toast.error('Не вдалось видалити із закладок')
     } finally {
       setUpdatingId(null)
     }
@@ -152,18 +178,26 @@ export default function BookmarksLibrary({ initialBookmarks }: BookmarksLibraryP
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex gap-2 overflow-x-auto border-b pb-2">
+        <button
+          type="button"
+          onClick={() => setStatusFilter('all')}
+          className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted ${
+            statusFilter === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+          }`}
+        >
+          Всі ({bookmarks.length})
+        </button>
         {statusOrder.map((status) => (
           <button
             key={status}
             type="button"
             onClick={() => setStatusFilter(statusFilter === status ? 'all' : status)}
-            className={`rounded-md border p-4 text-left transition-colors hover:bg-muted ${
-              statusFilter === status ? 'border-primary bg-primary/5' : ''
+            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted ${
+              statusFilter === status ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
             }`}
           >
-            <p className="text-2xl font-semibold">{counts[status]}</p>
-            <p className="text-sm text-muted-foreground">{statusLabels[status]}</p>
+            {statusLabels[status]} ({counts[status]})
           </button>
         ))}
       </div>
@@ -261,6 +295,23 @@ export default function BookmarksLibrary({ initialBookmarks }: BookmarksLibraryP
                         <Badge variant="outline">Розділ {bookmark.readingPosition}</Badge>
                       )}
                     </div>
+
+                    {bookmark.status === 'reading' && bookmark.readingPosition && bookmark.novel.chaptersCount > 0 && (
+                      <div className="mt-3">
+                        <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                          <span>Прогрес</span>
+                          <span>{Math.min(bookmark.readingPosition, bookmark.novel.chaptersCount)} / {bookmark.novel.chaptersCount}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full bg-primary"
+                            style={{
+                              width: `${Math.min(100, Math.round((bookmark.readingPosition / bookmark.novel.chaptersCount) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <span>{bookmark.novel.chaptersCount} глав</span>

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MessageSquare, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import UserPresence, { OnlineDot } from '@/components/user-presence'
 
 interface TopicVote {
   value: number
@@ -22,6 +23,7 @@ interface Topic {
     id: string
     name: string | null
     image: string | null
+    lastSeen?: Date | string | null
   }
   category: {
     id: string
@@ -43,6 +45,8 @@ interface Topic {
 interface ForumTopicCardProps {
   topic: Topic
   currentUserId?: string
+  hideVotes?: boolean
+  hideUserActivity?: boolean
 }
 
 function formatDate(date: Date): string {
@@ -62,7 +66,12 @@ function getVoteScore(votes: TopicVote[]): number {
   return votes.reduce((sum, v) => sum + v.value, 0)
 }
 
-export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardProps) {
+export default function ForumTopicCard({
+  topic,
+  currentUserId,
+  hideVotes = false,
+  hideUserActivity = false,
+}: ForumTopicCardProps) {
   const router = useRouter()
   const [votes, setVotes] = useState(topic.votes)
   const [isVoting, setIsVoting] = useState(false)
@@ -106,83 +115,88 @@ export default function ForumTopicCard({ topic, currentUserId }: ForumTopicCardP
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          {/* Vote buttons */}
-          <div className="flex flex-col items-center gap-1">
-            <button
-              onClick={() => handleVote(1)}
-              disabled={!currentUserId || isVoting}
-              className={cn(
-                'rounded p-1 transition-colors',
-                userVote === 1 ? 'text-orange-500 bg-orange-500/10' : 'text-muted-foreground hover:text-orange-500',
-                !currentUserId && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <ThumbsUp className="h-4 w-4" />
-            </button>
-            <span className={cn(
-              'text-sm font-medium',
-              score > 0 ? 'text-orange-500' : score < 0 ? 'text-blue-500' : 'text-muted-foreground'
-            )}>
-              {score}
-            </span>
-            <button
-              onClick={() => handleVote(-1)}
-              disabled={!currentUserId || isVoting}
-              className={cn(
-                'rounded p-1 transition-colors',
-                userVote === -1 ? 'text-blue-500 bg-blue-500/10' : 'text-muted-foreground hover:text-blue-500',
-                !currentUserId && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <ThumbsDown className="h-4 w-4" />
-            </button>
-          </div>
+          {!hideVotes && (
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => handleVote(1)}
+                disabled={!currentUserId || isVoting}
+                className={cn(
+                  'rounded p-1 transition-colors',
+                  userVote === 1 ? 'text-orange-500 bg-orange-500/10' : 'text-muted-foreground hover:text-orange-500',
+                  !currentUserId && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <ThumbsUp className="h-4 w-4" />
+              </button>
+              <span className={cn(
+                'text-sm font-medium',
+                score > 0 ? 'text-orange-500' : score < 0 ? 'text-blue-500' : 'text-muted-foreground'
+              )}>
+                {score}
+              </span>
+              <button
+                onClick={() => handleVote(-1)}
+                disabled={!currentUserId || isVoting}
+                className={cn(
+                  'rounded p-1 transition-colors',
+                  userVote === -1 ? 'text-blue-500 bg-blue-500/10' : 'text-muted-foreground hover:text-blue-500',
+                  !currentUserId && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <ThumbsDown className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {/* Topic content */}
           <div className="flex-1">
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <Badge
+                variant="secondary"
+                style={{
+                  backgroundColor: topic.category.color + '20',
+                  color: topic.category.color,
+                }}
+              >
+                {topic.category.name}
+              </Badge>
+              {topic.novel && (
+                <Link href={`/novel/${topic.novel.slug}`}>
+                  <Badge variant="outline" className="text-xs hover:bg-secondary">
+                    {topic.novel.title}
+                  </Badge>
+                </Link>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {formatDate(topic.createdAt)}
+              </span>
+            </div>
             <Link href={`/forum/${topic.id}`} className="block">
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <Badge
-                  variant="secondary"
-                  style={{
-                    backgroundColor: topic.category.color + '20',
-                    color: topic.category.color,
-                  }}
-                >
-                  {topic.category.name}
-                </Badge>
-                {topic.novel && (
-                  <Link href={`/novel/${topic.novel.slug}`} onClick={e => e.stopPropagation}>
-                    <Badge variant="outline" className="text-xs hover:bg-secondary">
-                      {topic.novel.title}
-                    </Badge>
-                  </Link>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(topic.createdAt)}
-                </span>
-              </div>
               <h3 className="mb-1 font-medium hover:text-primary">{topic.title}</h3>
               <p className="line-clamp-1 text-sm text-muted-foreground">
                 {topic.content}
               </p>
             </Link>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">
-                {topic.user.image ? (
-                  <img
-                    src={topic.user.image}
-                    alt={topic.user.name || ''}
-                    className="h-6 w-6 rounded-full object-cover"
-                  />
-                ) : (
-                  <span>{topic.user.name?.[0] || '?'}</span>
-                )}
+            {!hideUserActivity && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">
+                  {topic.user.image ? (
+                    <img
+                      src={topic.user.image}
+                      alt={topic.user.name || ''}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span>{topic.user.name?.[0] || '?'}</span>
+                  )}
+                  <OnlineDot lastSeen={topic.user.lastSeen} className="absolute bottom-0 right-0 h-2.5 w-2.5 border" />
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {topic.user.name || 'Користувач'}
+                </span>
+                <UserPresence lastSeen={topic.user.lastSeen} compact />
               </div>
-              <span className="text-xs text-muted-foreground">
-                {topic.user.name || 'Користувач'}
-              </span>
-            </div>
+            )}
           </div>
 
           {/* Comments count */}

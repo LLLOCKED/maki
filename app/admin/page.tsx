@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Shield, BookOpen, FileText, Clock, Settings, Users, MessageSquare, UserCheck, Activity, Search, UserX, Megaphone } from 'lucide-react'
+import { Shield, BookOpen, FileText, Clock, Settings, Users, MessageSquare, UserCheck, Activity, Search, UserX, Megaphone, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default async function AdminPage() {
@@ -30,6 +30,8 @@ export default async function AdminPage() {
     chaptersCount,
     activeUsersCount,
     commentsCount,
+    openReportsCount,
+    uniqueVisitorsCount, // Add this
     recentNovels,
     recentChapters,
   ] = await Promise.all([
@@ -40,6 +42,13 @@ export default async function AdminPage() {
     prisma.chapter.count(),
     prisma.user.count({ where: { lastSeen: { gte: fiveMinutesAgo } } }),
     prisma.comment.count(),
+    prisma.contentReport.count({ where: { status: 'OPEN' } }),
+    prisma.novelView.groupBy({ // Aggregate unique visitors for today
+      by: ['ipAddress'],
+      where: {
+        viewedDate: new Date(),
+      },
+    }).then(res => res.length),
     prisma.novel.findMany({
       where: { moderationStatus: 'PENDING' },
       select: { id: true, title: true, slug: true, createdAt: true },
@@ -66,6 +75,16 @@ export default async function AdminPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Унікальні відвідувачі</CardTitle>
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{uniqueVisitorsCount}</div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Користувачі</CardTitle>
@@ -152,6 +171,17 @@ export default async function AdminPage() {
             <div className="text-2xl font-bold">{commentsCount}</div>
           </CardContent>
         </Card>
+        <Link href="/admin/reports">
+          <Card className="transition-colors hover:border-primary">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Нові скарги</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{openReportsCount}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {isOwner && (
@@ -199,6 +229,18 @@ export default async function AdminPage() {
                 <div>
                   <CardTitle className="text-base">Оголошення</CardTitle>
                   <p className="text-sm text-muted-foreground">Керування каруселлю</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/reports">
+            <Card className="hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-4">
+                <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Скарги</CardTitle>
+                  <p className="text-sm text-muted-foreground">Скарги на тайтли та розділи</p>
                 </div>
               </CardContent>
             </Card>

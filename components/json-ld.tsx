@@ -1,3 +1,5 @@
+import Script from 'next/script'
+
 interface NovelJsonLdProps {
   title: string
   description: string
@@ -41,7 +43,8 @@ export function NovelJsonLd({
   }
 
   return (
-    <script
+    <Script
+      id={`novel-json-ld-${slug}`}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
@@ -66,7 +69,76 @@ export function WebsiteJsonLd() {
   }
 
   return (
-    <script
+    <Script
+      id="website-json-ld"
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
+interface ArticleJsonLdProps {
+  title: string
+  description: string
+  url: string
+  datePublished?: Date | string
+  dateModified?: Date | string
+  authorName?: string | null
+}
+
+export function ArticleJsonLd({
+  title,
+  description,
+  url,
+  datePublished,
+  dateModified,
+  authorName,
+}: ArticleJsonLdProps) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: title,
+    description,
+    url,
+    ...(datePublished && { datePublished }),
+    ...(dateModified && { dateModified }),
+    ...(authorName && {
+      author: {
+        '@type': 'Person',
+        name: authorName,
+      },
+    }),
+  }
+
+  return (
+    <Script
+      id={`article-json-ld-${url.replace(/[^a-z0-9]/gi, '-')}`}
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
+interface BreadcrumbItem {
+  name: string
+  url: string
+}
+
+export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  }
+
+  return (
+    <Script
+      id={`breadcrumbs-json-ld-${items.map((item) => item.name).join('-')}`}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />

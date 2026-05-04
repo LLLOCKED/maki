@@ -24,6 +24,18 @@ export async function PATCH(
       },
     })
 
+    // Notify submitter only about novel moderation status
+    if (novel.authorId) {
+      await prisma.notification.create({
+        data: {
+          userId: novel.authorId,
+          type: action === 'APPROVE' ? 'NOVEL_APPROVED' : 'NOVEL_REJECTED',
+          novelId: novel.id,
+          chapterId: '',
+        }
+      })
+    }
+
     // Log admin action
     await prisma.adminActivityLog.create({
       data: {

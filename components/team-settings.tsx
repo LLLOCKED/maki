@@ -55,16 +55,18 @@ export default function TeamSettings({ teamSlug, currentAvatar, currentBanner }:
   const handleSave = async () => {
     setIsLoading(true)
     try {
-      const formData = new FormData()
+      let uploadedAvatarUrl: string | null = null
+      let uploadedBannerUrl: string | null = null
 
       if (avatarFile) {
-        formData.append('file', avatarFile)
-        formData.append('type', 'avatar')
-        formData.append('teamSlug', teamSlug)
+        const avatarFormData = new FormData()
+        avatarFormData.append('file', avatarFile)
+        avatarFormData.append('type', 'avatar')
+        avatarFormData.append('teamSlug', teamSlug)
 
         const res = await fetch('/api/upload/team-image', {
           method: 'POST',
-          body: formData,
+          body: avatarFormData,
         })
 
         if (!res.ok) {
@@ -72,16 +74,20 @@ export default function TeamSettings({ teamSlug, currentAvatar, currentBanner }:
           toast.error(data.error || 'Помилка завантаження аватарки')
           return
         }
+
+        const data = await res.json()
+        uploadedAvatarUrl = data.url
       }
 
       if (bannerFile) {
-        formData.append('file', bannerFile)
-        formData.append('type', 'banner')
-        formData.append('teamSlug', teamSlug)
+        const bannerFormData = new FormData()
+        bannerFormData.append('file', bannerFile)
+        bannerFormData.append('type', 'banner')
+        bannerFormData.append('teamSlug', teamSlug)
 
         const res = await fetch('/api/upload/team-image', {
           method: 'POST',
-          body: formData,
+          body: bannerFormData,
         })
 
         if (!res.ok) {
@@ -89,6 +95,9 @@ export default function TeamSettings({ teamSlug, currentAvatar, currentBanner }:
           toast.error(data.error || 'Помилка завантаження фону')
           return
         }
+
+        const data = await res.json()
+        uploadedBannerUrl = data.url
       }
 
       if (!avatarFile && !bannerFile) {
@@ -96,6 +105,10 @@ export default function TeamSettings({ teamSlug, currentAvatar, currentBanner }:
         return
       }
 
+      if (uploadedAvatarUrl) setAvatarPreview(uploadedAvatarUrl)
+      if (uploadedBannerUrl) setBannerPreview(uploadedBannerUrl)
+      setAvatarFile(null)
+      setBannerFile(null)
       toast.success('Зображення завантажено')
       setIsOpen(false)
       router.refresh()

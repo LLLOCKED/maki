@@ -42,6 +42,10 @@ export default function NotificationsList({ initialNotifications }: Notification
   const [notifications, setNotifications] = useState(initialNotifications)
   const [isLoading, setIsLoading] = useState(false)
 
+  const emitReadEvent = () => {
+    window.dispatchEvent(new Event('notificationsRead'))
+  }
+
   const handleMarkAsRead = async (id: string) => {
     try {
       const res = await fetch('/api/notifications', {
@@ -51,6 +55,7 @@ export default function NotificationsList({ initialNotifications }: Notification
       })
       if (res.ok) {
         setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n))
+        emitReadEvent()
       }
     } catch (error) {
       console.error('Mark as read error:', error)
@@ -67,6 +72,7 @@ export default function NotificationsList({ initialNotifications }: Notification
       })
       if (res.ok) {
         setNotifications(notifications.map(n => ({ ...n, isRead: true })))
+        emitReadEvent()
         router.refresh()
       }
     } catch (error) {

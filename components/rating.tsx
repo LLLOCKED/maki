@@ -3,11 +3,21 @@
 import { useState } from 'react'
 import { Star } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { toast } from 'react-toastify'
 
 interface RatingProps {
   novelId: string
   initialRating: number
   userRating?: number
+}
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
 }
 
 export default function Rating({ novelId, initialRating, userRating: initialUserRating }: RatingProps) {
@@ -27,13 +37,18 @@ export default function Rating({ novelId, initialRating, userRating: initialUser
         body: JSON.stringify({ novelId, value }),
       })
 
-      if (res.ok) {
-        const data = await res.json()
-        setUserRating(value)
-        setRating(data.newAverage)
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось зберегти оцінку'))
+        return
       }
+
+      const data = await res.json()
+      setUserRating(value)
+      setRating(data.newAverage)
+      toast.success('Оцінку збережено')
     } catch (error) {
       console.error('Rating error:', error)
+      toast.error('Не вдалось зберегти оцінку')
     } finally {
       setIsLoading(false)
     }

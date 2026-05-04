@@ -11,12 +11,15 @@ export async function GET() {
 
   try {
     const count = await prisma.notification.count({
-      where: { userId: session.user.id, isRead: false },
+      where: {
+        userId: session.user.id,
+        isRead: false,
+      },
     })
 
     return NextResponse.json({ count })
   } catch (error) {
-    console.error('Get notification count error:', error)
-    return NextResponse.json({ error: 'Failed to get count' }, { status: 500 })
+    console.error('Notification count error:', error)
+    return NextResponse.json({ error: 'Failed to fetch count' }, { status: 500 })
   }
 }

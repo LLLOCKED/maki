@@ -1,17 +1,35 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { MessageCircle, Send, Reply } from 'lucide-react'
+import { ChevronDown, ChevronRight, Edit2, MessageCircle, Reply, ThumbsUp, Trash2 } from 'lucide-react'
+import { toast } from 'react-toastify'
+import UserPresence, { OnlineDot } from '@/components/user-presence'
+import CommentFormatToolbar from '@/components/comment-format-toolbar'
+import CommentContent from '@/components/comment-content'
+import ReportButton from '@/components/report-button'
+
+const COMMENT_MAX_LENGTH = 2000
+const COMMENT_EDIT_WINDOW_MS = 15 * 60 * 1000
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
+}
 
 interface CommentUser {
   id: string
   name: string | null
   image: string | null
+  lastSeen?: Date | string | null
 }
 
 interface Comment {
@@ -20,8 +38,11 @@ interface Comment {
   userId: string
   parentId?: string | null
   createdAt: Date
+  updatedAt?: Date | string
   user: CommentUser
   replies?: Comment[]
+  score?: number
+  currentUserVote?: number
 }
 
 interface CommentSectionProps {
@@ -50,6 +71,7 @@ interface CommentFormProps {
 function CommentForm({ novelId, chapterId, parentId, onCancel, onSuccess }: CommentFormProps) {
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -68,13 +90,18 @@ function CommentForm({ novelId, chapterId, parentId, onCancel, onSuccess }: Comm
         }),
       })
 
-      if (res.ok) {
-        const comment = await res.json()
-        onSuccess(comment)
-        setContent('')
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось додати коментар'))
+        return
       }
+
+      const comment = await res.json()
+      onSuccess(comment)
+      setContent('')
+      toast.success(parentId ? 'Відповідь додано' : 'Коментар додано')
     } catch (error) {
       console.error('Error posting comment:', error)
+      toast.error('Не вдалось додати коментар')
     } finally {
       setIsSubmitting(false)
     }
@@ -82,22 +109,30 @@ function CommentForm({ novelId, chapterId, parentId, onCancel, onSuccess }: Comm
 
   return (
     <form onSubmit={handleSubmit} className="mt-2">
+      <CommentFormatToolbar textareaRef={textareaRef} value={content} onChange={setContent} />
       <Textarea
+        ref={textareaRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder={parentId ? 'Написати відповідь...' : 'Написати коментар...'}
         className="mb-2"
+        maxLength={COMMENT_MAX_LENGTH}
         rows={2}
       />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!content.trim() || isSubmitting}>
-          {isSubmitting ? '...' : 'Надіслати'}
-        </Button>
-        {onCancel && (
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            Скасувати
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">
+          {content.length}/{COMMENT_MAX_LENGTH}
+        </span>
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={!content.trim() || content.length > COMMENT_MAX_LENGTH || isSubmitting}>
+            {isSubmitting ? '...' : 'Надіслати'}
           </Button>
-        )}
+          {onCancel && (
+            <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+              Скасувати
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   )
@@ -108,13 +143,27 @@ interface CommentItemProps {
   novelId?: string
   chapterId?: string
   currentUserId?: string
+  currentUserRole?: string
   onAddReply: (parentId: string, reply: Comment) => void
+  onUpdateComment: (commentId: string, content: string) => void
+  onDeleteComment: (commentId: string) => void
   depth?: number
 }
 
-function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, depth = 0 }: CommentItemProps) {
+function CommentItem({ comment, novelId, chapterId, currentUserId, currentUserRole, onAddReply, onUpdateComment, onDeleteComment, depth = 0 }: CommentItemProps) {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [localReplies, setLocalReplies] = useState<Comment[]>(comment.replies || [])
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(comment.content)
+  const [score, setScore] = useState(comment.score || 0)
+  const [currentUserVote, setCurrentUserVote] = useState(comment.currentUserVote || 0)
+  const [isMutating, setIsMutating] = useState(false)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const isOwner = currentUserId === comment.userId
+  const isModerator = ['OWNER', 'ADMIN', 'MODERATOR'].includes(currentUserRole || '')
+  const canEdit = isOwner && Date.now() - new Date(comment.createdAt).getTime() <= COMMENT_EDIT_WINDOW_MS
+  const isEdited = Boolean(comment.updatedAt && new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000)
 
   const handleReplySuccess = (reply: Comment) => {
     onAddReply(comment.id, reply)
@@ -122,11 +171,79 @@ function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, d
     setShowReplyForm(false)
   }
 
+  async function handleVote() {
+    if (!currentUserId || isMutating) return
+    setIsMutating(true)
+    try {
+      const nextVote = currentUserVote === 1 ? 0 : 1
+      const res = await fetch(`/api/comments/${comment.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: nextVote }),
+      })
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось оновити лайк'))
+        return
+      }
+      const data = await res.json()
+      setScore(data.score)
+      setCurrentUserVote(data.currentUserVote)
+    } catch (error) {
+      console.error('Vote comment error:', error)
+      toast.error('Не вдалось оновити лайк')
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  async function handleEditSubmit() {
+    if (!editContent.trim() || isMutating) return
+    setIsMutating(true)
+    try {
+      const res = await fetch(`/api/comments/${comment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editContent }),
+      })
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось оновити коментар'))
+        return
+      }
+      onUpdateComment(comment.id, editContent)
+      setIsEditing(false)
+      toast.success('Коментар оновлено')
+    } catch (error) {
+      console.error('Update comment error:', error)
+      toast.error('Не вдалось оновити коментар')
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('Видалити цей коментар?')) return
+    setIsMutating(true)
+    try {
+      const res = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, 'Не вдалось видалити коментар'))
+        return
+      }
+      onDeleteComment(comment.id)
+      toast.success('Коментар видалено')
+    } catch (error) {
+      console.error('Delete comment error:', error)
+      toast.error('Не вдалось видалити коментар')
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
   return (
     <div className={depth > 0 ? 'ml-6 border-l-2 border-muted pl-4' : ''}>
       <Card className="mb-2 p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+          <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
             {comment.user.image ? (
               <img
                 src={comment.user.image}
@@ -136,18 +253,77 @@ function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, d
             ) : (
               comment.user.name?.[0] || 'U'
             )}
+            <OnlineDot lastSeen={comment.user.lastSeen} className="absolute bottom-0 right-0 h-3 w-3 border-2" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {localReplies.length > 0 && (
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsCollapsed(!isCollapsed)}
+                  aria-label={isCollapsed ? 'Розгорнути гілку' : 'Згорнути гілку'}
+                >
+                  {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+              )}
               <Link href={`/user/${comment.user.id}`} className="font-medium hover:underline">
                 {comment.user.name || 'Анонім'}
               </Link>
+              <UserPresence lastSeen={comment.user.lastSeen} compact />
               <span className="text-xs text-muted-foreground">
                 {formatDate(comment.createdAt)}
               </span>
+              {isEdited && (
+                <span className="text-xs text-muted-foreground">змінено</span>
+              )}
+              {isCollapsed && localReplies.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {localReplies.length} відповід{localReplies.length === 1 ? 'ь' : 'ей'}
+                </span>
+              )}
             </div>
-            <p className="mt-1 text-sm">{comment.content}</p>
-            <div className="mt-2">
+            {isEditing ? (
+              <div className="mt-2">
+                <CommentFormatToolbar textareaRef={editTextareaRef} value={editContent} onChange={setEditContent} />
+                <Textarea
+                  ref={editTextareaRef}
+                  value={editContent}
+                  onChange={(event) => setEditContent(event.target.value)}
+                  maxLength={COMMENT_MAX_LENGTH}
+                  rows={3}
+                />
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">{editContent.length}/{COMMENT_MAX_LENGTH}</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleEditSubmit} disabled={isMutating || !editContent.trim()}>
+                      Зберегти
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setEditContent(comment.content)
+                      setIsEditing(false)
+                    }}>
+                      Скасувати
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <CommentContent content={editContent} className="mt-1 text-sm" />
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleVote}
+                  disabled={isMutating}
+                  className={`h-auto p-0 ${currentUserVote === 1 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <ThumbsUp className="mr-1 h-4 w-4" />
+                  {score}
+                </Button>
+              )}
               {currentUserId && depth < 4 && (
                 <Button
                   variant="ghost"
@@ -158,6 +334,36 @@ function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, d
                   <Reply className="mr-1 h-4 w-4" />
                   Відповісти
                 </Button>
+              )}
+              {currentUserId && !isOwner && (
+                <ReportButton targetType="COMMENT" commentId={comment.id} label="Поскаржитись на коментар" />
+              )}
+              {(isOwner || isModerator) && !isEditing && (
+                <>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsEditing(true)}
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      title="Редагувати"
+                      aria-label="Редагувати коментар"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleDelete}
+                    disabled={isMutating}
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    title="Видалити"
+                    aria-label={isOwner ? 'Видалити коментар' : 'Видалити коментар як модератор'}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
             {showReplyForm && (
@@ -172,13 +378,16 @@ function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, d
           </div>
         </div>
       </Card>
-      {localReplies.map((reply) => (
+      {!isCollapsed && localReplies.map((reply) => (
         <CommentItem
           key={reply.id}
           comment={reply}
           novelId={novelId}
           chapterId={chapterId}
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          onUpdateComment={onUpdateComment}
+          onDeleteComment={onDeleteComment}
           onAddReply={(parentId, newReply) => {
             const updateReplies = (replies: Comment[]): Comment[] =>
               replies.map((r) =>
@@ -197,13 +406,15 @@ function CommentItem({ comment, novelId, chapterId, currentUserId, onAddReply, d
 
 export default function CommentSection({ novelId, chapterId }: CommentSectionProps) {
   const { data: session } = useSession()
+  const currentUserRole = (session?.user as { role?: string } | undefined)?.role
   const [comments, setComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
 
   useEffect(() => {
     fetchComments()
-  }, [novelId, chapterId])
+  }, [novelId, chapterId, sort])
 
   async function fetchComments() {
     setIsLoading(true)
@@ -211,6 +422,7 @@ export default function CommentSection({ novelId, chapterId }: CommentSectionPro
       const params = new URLSearchParams()
       if (novelId) params.set('novelId', novelId)
       if (chapterId) params.set('chapterId', chapterId)
+      params.set('sort', sort)
 
       const res = await fetch(`/api/comments?${params.toString()}`)
       if (res.ok) {
@@ -240,8 +452,24 @@ export default function CommentSection({ novelId, chapterId }: CommentSectionPro
   }
 
   const handleNewComment = (comment: Comment) => {
-    setComments([comment, ...comments])
+    setComments(sort === 'newest' ? [comment, ...comments] : [...comments, comment])
     setShowForm(false)
+  }
+
+  const updateCommentContent = (commentId: string, content: string) => {
+    const updateTree = (items: Comment[]): Comment[] => items.map((item) => (
+      item.id === commentId
+        ? { ...item, content }
+        : { ...item, replies: updateTree(item.replies || []) }
+    ))
+    setComments(updateTree(comments))
+  }
+
+  const removeComment = (commentId: string) => {
+    const removeFromTree = (items: Comment[]): Comment[] => items
+      .filter((item) => item.id !== commentId)
+      .map((item) => ({ ...item, replies: removeFromTree(item.replies || []) }))
+    setComments(removeFromTree(comments))
   }
 
   return (
@@ -252,9 +480,19 @@ export default function CommentSection({ novelId, chapterId }: CommentSectionPro
           Коментарі ({comments.length})
         </h3>
         {session && !showForm && (
-          <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-            Написати
-          </Button>
+          <div className="flex items-center gap-2">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as 'newest' | 'oldest')}
+              className="rounded-md border bg-background px-2 py-1 text-sm"
+            >
+              <option value="newest">Нові спочатку</option>
+              <option value="oldest">Старі спочатку</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+              Написати
+            </Button>
+          </div>
         )}
       </div>
 
@@ -297,7 +535,10 @@ export default function CommentSection({ novelId, chapterId }: CommentSectionPro
               novelId={novelId}
               chapterId={chapterId}
               currentUserId={session?.user?.id}
+              currentUserRole={currentUserRole}
               onAddReply={handleAddReply}
+              onUpdateComment={updateCommentContent}
+              onDeleteComment={removeComment}
             />
           ))}
         </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { deleteFromFTP } from '@/lib/ftp'
+import { deleteFromStorage } from '@/lib/storage'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ROLES, hasRole, isAuthResponse, requireUser } from '@/lib/permissions'
 import { deleteUploadSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
@@ -12,6 +12,9 @@ export async function POST(request: Request) {
     const body = await parseJsonBody(request, deleteUploadSchema)
     if (isValidationResponse(body)) return body
     const { filename, folder } = body
+
+    // R2 uses a single path string (folder/filename)
+    const key = `${folder}/${filename}`
 
     if (folder === 'avatars' && !filename.startsWith(`${session.user.id}-`)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
       }
     }
 
-    await deleteFromFTP(filename, folder)
+    await deleteFromStorage(key)
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -5,8 +5,8 @@ import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import ReaderClient from '@/components/reader-client'
-import TranslationSelector from '@/components/translation-selector'
 import ChapterDropdown from '@/components/chapter-dropdown'
+import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/json-ld'
 
 interface ReaderPageProps {
   params: Promise<{
@@ -17,34 +17,45 @@ interface ReaderPageProps {
 
 async function parsePath(pathParts: string[]) {
   // Path format: [volume.]chapter[/team-slug]
-  // Examples: "5" -> { volume: null, chapter: 5, teamSlug: null }
-  //           "1.5" -> { volume: 1, chapter: 5, teamSlug: null }
-  //           "1.5/koreec" -> { volume: 1, chapter: 5, teamSlug: 'koreec' }
-  //           "5/koreec" -> { volume: null, chapter: 5, teamSlug: 'koreec' }
-
   if (pathParts.length === 0) return null
 
-  const lastPart = pathParts[pathParts.length - 1]
   let teamSlug: string | null = null
-  let chapterPart = lastPart
+  let chapterPart = pathParts[0]
 
   if (pathParts.length > 1) {
-    teamSlug = pathParts[pathParts.length - 1]
-    chapterPart = pathParts[pathParts.length - 2]
+    // If last part is not a number (or contains letters), it's likely a team slug
+    const last = pathParts[pathParts.length - 1]
+    if (isNaN(parseFloat(last)) || /[a-zA-Z]/.test(last)) {
+      teamSlug = last
+      chapterPart = pathParts[pathParts.length - 2]
+    } else {
+      chapterPart = last
+    }
   }
 
-  const match = chapterPart.match(/^(\d+)\.(\d+)$/)
   let volume: number | null = null
   let chapterNumber: number
 
-  if (match) {
-    volume = parseInt(match[1])
-    chapterNumber = parseInt(match[2])
+  // Handle Vol.Ch format (e.g. "1.4.1")
+  // We look for a dot. If there's a dot, the first part is volume IF it's a small integer.
+  const dotParts = chapterPart.split('.')
+  if (dotParts.length >= 2) {
+    const v = parseInt(dotParts[0])
+    // Join the rest as the chapter number
+    const cStr = dotParts.slice(1).join('.')
+    const c = parseFloat(cStr)
+
+    if (!isNaN(v) && !isNaN(c)) {
+      volume = v
+      chapterNumber = c
+    } else {
+      chapterNumber = parseFloat(chapterPart)
+    }
   } else {
-    chapterNumber = parseInt(chapterPart)
+    chapterNumber = parseFloat(chapterPart)
   }
 
-  if (isNaN(chapterNumber) || chapterNumber < 1) return null
+  if (isNaN(chapterNumber) || chapterNumber < 0) return null
 
   return { volume, chapterNumber, teamSlug }
 }
@@ -55,17 +66,25 @@ function formatChapterUrl(novelSlug: string, number: number, volume: number | nu
   return `/read/${novelSlug}/${volStr}${number}${teamPath}`
 }
 
+function plainText(value: string): string {
+  return value
+    .replace(/[#*_>`~\[\]()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function generateMetadata({ params }: ReaderPageProps) {
   const { slug, path: pathParts } = await params
   const parsed = await parsePath(pathParts)
 
-  if (!parsed) return { title: 'Не найдено' }
+  if (!parsed) return { title: 'Не знайдено' }
 
   const { volume, chapterNumber, teamSlug } = parsed
   const chapter = await prisma.chapter.findFirst({
     where: {
-      novel: { slug },
+      novel: { slug, deletedAt: null },
       number: chapterNumber,
+      deletedAt: null,
       ...(volume !== null && { volume }),
       ...(teamSlug && { team: { slug: teamSlug } }),
       moderationStatus: 'APPROVED',
@@ -73,10 +92,21 @@ export async function generateMetadata({ params }: ReaderPageProps) {
     include: { novel: { select: { title: true } } },
   })
 
-  if (!chapter) return { title: 'Не найдено' }
+  if (!chapter) return { title: 'Не знайдено' }
+
+  const chapterUrl = formatChapterUrl(slug, chapter.number, chapter.volume || null, teamSlug)
+  const description = plainText(chapter.content).slice(0, 160)
 
   return {
     title: `${chapter.title} — ${chapter.novel.title} — honni`,
+    description,
+    alternates: { canonical: chapterUrl },
+    openGraph: {
+      type: 'article',
+      title: `${chapter.title} — ${chapter.novel.title}`,
+      description,
+      url: chapterUrl,
+    },
   }
 }
 
@@ -120,7 +150,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
 
   // Find the novel
   const novel = await prisma.novel.findUnique({
-    where: isAdmin ? { slug } : { slug, moderationStatus: 'APPROVED' },
+    where: isAdmin ? { slug, deletedAt: null } : { slug, moderationStatus: 'APPROVED', deletedAt: null },
     select: { id: true, title: true, slug: true },
   })
 
@@ -132,6 +162,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
   const chapterWhere: any = {
     novelId: novel.id,
     number: chapterNumber,
+    deletedAt: null,
     ...(volume !== null && { volume }),
   }
   if (!isAdmin) {
@@ -162,6 +193,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
   // Get all chapters for navigation (from same team if applicable)
   const allChaptersWhere: any = {
     novelId: novel.id,
+    deletedAt: null,
     moderationStatus: isAdmin ? undefined : 'APPROVED',
   }
   if (currentTeamId) {
@@ -183,6 +215,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
   const allTranslationsWhere: any = {
     novelId: novel.id,
     number: chapterNumber,
+    deletedAt: null,
     ...(volume !== null && { volume }),
   }
   if (!isAdmin) {
@@ -201,40 +234,57 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
   const nextUrl = nextChapter
     ? formatChapterUrl(novel.slug, nextChapter.number, nextChapter.volume || null, nextChapter.team?.slug || null)
     : null
+  const [bookmark] = session?.user?.id
+    ? await prisma.$queryRaw<{ readingPosition: number | null; readingProgress: number }[]>`
+        SELECT "readingPosition", "readingProgress"
+        FROM "Bookmark"
+        WHERE "userId" = ${session.user.id} AND "novelId" = ${novel.id}
+        LIMIT 1
+      `
+    : []
+  const initialReadingProgress = bookmark?.readingPosition === chapterNumber ? bookmark.readingProgress : 0
 
   return (
     <div className="min-h-screen">
+      <ArticleJsonLd
+        title={`${selectedChapter.title} — ${novel.title}`}
+        description={plainText(selectedChapter.content).slice(0, 160)}
+        url={`https://honni.fun${formatChapterUrl(novel.slug, selectedChapter.number, selectedChapter.volume || null, selectedChapter.team?.slug || null)}`}
+        datePublished={selectedChapter.createdAt}
+        dateModified={selectedChapter.updatedAt}
+        authorName={selectedChapter.team?.name || null}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'honni', url: 'https://honni.fun' },
+          { name: novel.title, url: `https://honni.fun/novel/${novel.slug}` },
+          {
+            name: selectedChapter.title,
+            url: `https://honni.fun${formatChapterUrl(novel.slug, selectedChapter.number, selectedChapter.volume || null, selectedChapter.team?.slug || null)}`,
+          },
+        ]}
+      />
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
               <Link href={`/novel/${novel.slug}`}>
                 <Button variant="ghost" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   Назад
                 </Button>
               </Link>
-              <h1 className="text-sm font-medium">{novel.title}</h1>
+              <h1 className="truncate text-sm font-medium">{novel.title}</h1>
             </div>
 
-            {/* Translation selector */}
-            {allTranslations.length > 1 && (
-              <TranslationSelector
-                translations={allTranslations as any}
+            <div className="w-full sm:w-96">
+              <ChapterDropdown
+                chapters={allChaptersForNav as any}
                 selectedId={selectedChapter.id}
                 novelSlug={novel.slug}
               />
-            )}
-          </div>
-
-          {/* Chapter dropdown - full width on mobile */}
-          <div className="mt-2 w-full sm:mt-0 sm:flex-none">
-            <ChapterDropdown
-              chapters={allChaptersForNav as any}
-              selectedId={selectedChapter.id}
-              novelSlug={novel.slug}
-            />
+            </div>
           </div>
         </div>
       </div>
@@ -261,6 +311,7 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
         nextChapterVolume={nextChapter?.volume || null}
         nextChapterTeamSlug={nextChapter?.team?.slug || null}
         overallProgress={`${currentIndex + 1} з ${allChaptersForNav.length}`}
+        initialReadingProgress={initialReadingProgress}
       />
     </div>
   )

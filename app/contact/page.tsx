@@ -39,12 +39,12 @@ export default function ContactPage() {
               Або напишіть нам у Telegram:
             </p>
             <a
-              href="https://t.me/maki_reading"
+              href="https://t.me/paradinaito"
               target="_blank"
               rel="noopener noreferrer"
               className="text-lg font-medium text-primary hover:underline"
             >
-              @maki_reading
+              @paradinaito
             </a>
           </CardContent>
         </Card>

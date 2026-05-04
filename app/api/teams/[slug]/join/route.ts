@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 export async function POST(
   request: Request,
@@ -10,13 +11,13 @@ export async function POST(
   const session = await auth()
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Потрібна авторизація' }, { status: 401 })
   }
 
   try {
     const team = await prisma.team.findUnique({ where: { slug } })
     if (!team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Команду не знайдено' }, { status: 404 })
     }
 
     const teamId = team.id
@@ -32,21 +33,20 @@ export async function POST(
     })
 
     if (existing) {
-      return NextResponse.json({ error: 'Already a member' }, { status: 400 })
+      return NextResponse.json({ error: 'Ви вже в команді' }, { status: 400 })
     }
 
-    // For now, just add as member (in future could require approval)
-    const membership = await prisma.teamMembership.create({
-      data: {
-        userId: session.user.id,
-        teamId,
-        role: 'member',
-      },
-    })
+    const [request] = await prisma.$queryRaw<{ id: string; userId: string; teamId: string; status: string }[]>`
+      INSERT INTO "TeamJoinRequest" ("id", "userId", "teamId", "status", "createdAt", "updatedAt")
+      VALUES (${randomUUID()}, ${session.user.id}, ${teamId}, 'PENDING'::"TeamJoinRequestStatus", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT ("userId", "teamId")
+      DO UPDATE SET "status" = 'PENDING'::"TeamJoinRequestStatus", "updatedAt" = CURRENT_TIMESTAMP
+      RETURNING "id", "userId", "teamId", "status"
+    `
 
-    return NextResponse.json(membership, { status: 201 })
+    return NextResponse.json(request, { status: 201 })
   } catch (error) {
     console.error('Join team error:', error)
-    return NextResponse.json({ error: 'Failed to join team' }, { status: 500 })
+    return NextResponse.json({ error: 'Не вдалось надіслати заявку' }, { status: 500 })
   }
 }

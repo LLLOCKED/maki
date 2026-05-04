@@ -77,7 +77,7 @@ export const createNovelSchema = z.object({
 
 export const createChapterSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  number: z.coerce.number().int().positive(),
+  number: z.coerce.number().positive(),
   volume: z.coerce.number().int().positive().optional().nullable(),
   content: z.string().max(200000).default(''),
   novelId: z.string().trim().min(1),
@@ -103,7 +103,7 @@ export const updateProfileSchema = z.object({
 
 export const createCommentSchema = z
   .object({
-    content: z.string().trim().min(1).max(10000),
+    content: z.string().trim().min(1).max(2000),
     novelId: z.string().trim().min(1).optional().nullable(),
     chapterId: z.string().trim().min(1).optional().nullable(),
     parentId: z.string().trim().min(1).optional().nullable(),
@@ -133,7 +133,8 @@ export const ratingSchema = z.object({
 export const bookmarkSchema = z.object({
   novelId: z.string().trim().min(1),
   status: z.enum(['reading', 'planned', 'completed', 'dropped']),
-  readingPosition: z.coerce.number().int().positive().optional().nullable(),
+  readingPosition: z.coerce.number().positive().optional().nullable(),
+  readingProgress: z.coerce.number().int().min(0).max(100).optional(),
 })
 
 export const novelIdSchema = z.object({
@@ -142,7 +143,8 @@ export const novelIdSchema = z.object({
 
 export const bookmarkPositionSchema = z.object({
   novelId: z.string().trim().min(1),
-  chapterNumber: z.coerce.number().int().positive(),
+  chapterNumber: z.coerce.number().positive(),
+  progress: z.coerce.number().int().min(0).max(100).optional(),
 })
 
 export const collectionCreateSchema = z.object({
@@ -167,7 +169,7 @@ export const forumVoteSchema = z.object({
 })
 
 export const forumCommentSchema = z.object({
-  content: z.string().trim().min(1).max(10000),
+  content: z.string().trim().min(1).max(2000),
   parentId: z.string().trim().min(1).optional().nullable(),
 })
 

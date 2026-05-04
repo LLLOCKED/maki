@@ -37,6 +37,7 @@ interface CatalogFiltersProps {
   genres: Genre[]
   tags: Tag[]
   authors: Author[]
+  variant?: 'toolbar' | 'sidebar'
 }
 
 const typeOptions = [
@@ -68,7 +69,7 @@ const sortOptions = [
   { value: 'created', label: 'За датою додавання' },
 ]
 
-export default function CatalogFilters({ genres, tags, authors }: CatalogFiltersProps) {
+export default function CatalogFilters({ genres, tags, authors, variant = 'toolbar' }: CatalogFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -203,14 +204,14 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
   }
 
   return (
-    <div className="space-y-4">
+    <div className={variant === 'sidebar' ? 'space-y-5 rounded-md border bg-card p-4' : 'space-y-4'}>
       {/* Search and Quick Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className={variant === 'sidebar' ? 'flex flex-col gap-3' : 'flex flex-wrap gap-3'}>
         <Input
           placeholder="Пошук новели..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
+          className={variant === 'sidebar' ? 'w-full' : 'max-w-xs'}
         />
 
         <DropdownMenu>
@@ -337,8 +338,8 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
       </div>
 
       {/* Expanded Filters (Genres, Tags, Authors) */}
-      {isExpanded && (
-        <div className="grid gap-4 md:grid-cols-3">
+      {(isExpanded || variant === 'sidebar') && (
+        <div className={variant === 'sidebar' ? 'space-y-4' : 'grid gap-4 md:grid-cols-3'}>
           {/* Genres */}
           <div>
             <h3 className="mb-2 text-sm font-medium">Жанри</h3>
@@ -392,13 +393,15 @@ export default function CatalogFilters({ genres, tags, authors }: CatalogFilters
         </div>
       )}
 
-      <Button
-        variant="link"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="p-0"
-      >
-        {isExpanded ? 'Сховати додаткові фільтри' : 'Показати жанри, теги, авторів'}
-      </Button>
+      {variant === 'toolbar' && (
+        <Button
+          variant="link"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-0"
+        >
+          {isExpanded ? 'Сховати додаткові фільтри' : 'Показати жанри, теги, авторів'}
+        </Button>
+      )}
 
       {/* Active Filters */}
       {hasFilters && (

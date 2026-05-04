@@ -55,17 +55,17 @@ export default function ChapterDropdown({ chapters, selectedId, novelSlug }: Cha
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between gap-1 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
+        className="flex w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
       >
-        <span>
+        <span className="min-w-0 truncate text-left">
           {selectedChapter?.volume ? `Том ${selectedChapter.volume} Розділ ${selectedChapter.number}` : `Розділ ${selectedChapter?.number}`}
           {selectedChapter?.title && ` — ${selectedChapter.title}`}
         </span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-96 w-full overflow-y-auto rounded-md border bg-background shadow-lg">
+        <div className="absolute inset-x-0 top-full z-[80] mt-1 max-h-96 w-full overflow-y-auto rounded-md border bg-background shadow-lg">
           <div className="sticky top-0 flex items-center justify-between border-b bg-background px-3 py-2">
             <span className="text-sm font-medium">Всі розділи</span>
             <button onClick={() => setIsOpen(false)} className="rounded p-1 hover:bg-muted">

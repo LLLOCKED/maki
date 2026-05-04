@@ -4,6 +4,15 @@ import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
+import { DEFAULT_AVATAR_URL } from './default-avatar'
+import { getClientIp, rateLimit } from './rate-limit'
+
+async function getSessionUser(id: string) {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { role: true, name: true, image: true, isBanned: true },
+  })
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma as any),
@@ -22,13 +31,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           return null
         }
 
+        const email = String(credentials.email).toLowerCase()
+        const ip = request ? getClientIp(request) : 'unknown'
+        const loginLimit = rateLimit({
+          key: `login:${ip}:${email}`,
+          limit: 5,
+          windowMs: 10 * 60 * 1000,
+        })
+        if (!loginLimit.success) {
+          throw new Error('Too many login attempts')
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
         })
 
         if (!user || !user.passwordHash) {
@@ -62,31 +82,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      const now = Math.floor(Date.now() / 1000)
+
       if (user) {
         token.id = user.id
-        token.role = (user as any).role || 'USER'
         token.image = user.image as string | null
+        token.lastRefresh = now
+
+        if (user.id) {
+          try {
+            const dbUser = await getSessionUser(user.id)
+            token.role = dbUser?.role || 'USER'
+            token.name = dbUser?.name || token.name
+            token.image = dbUser?.image || DEFAULT_AVATAR_URL
+            token.isBanned = dbUser?.isBanned || false
+          } catch (error) {
+            console.error('JWT login refresh error:', error)
+            token.role = (user as any).role || 'USER'
+          }
+        }
       }
-      // Always fetch fresh role and image from DB for JWT
-      if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { role: true, image: true },
-        })
-        if (dbUser) {
-          token.role = dbUser.role
-          token.image = dbUser.image
+
+      if (trigger === 'update' && session) {
+        if (session.name) token.name = session.name
+        if (session.image) token.image = session.image
+        if (session.role) token.role = session.role
+        token.lastRefresh = now
+      }
+
+      const shouldRefresh = !token.lastRefresh || (now - (token.lastRefresh as number)) > 60
+
+      if (token.id && shouldRefresh) {
+        try {
+          const dbUser = await getSessionUser(token.id as string)
+          if (dbUser) {
+            token.role = dbUser.role
+            token.name = dbUser.name
+            token.image = dbUser.image || DEFAULT_AVATAR_URL
+            token.isBanned = dbUser.isBanned
+            token.lastRefresh = now
+          }
+        } catch (error) {
+          console.error('JWT refresh error:', error)
         }
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        const userSession = session.user as { id?: string; role?: string; image?: string | null }
+        const userSession = session.user as { id?: string; role?: string; name?: string | null; image?: string | null }
         userSession.id = token.id as string
         userSession.role = token.role as string || 'USER'
-        userSession.image = token.image as string | null
+        userSession.name = token.name as string | null
+        userSession.image = (token.image as string | null) || DEFAULT_AVATAR_URL
       }
       return session
     },

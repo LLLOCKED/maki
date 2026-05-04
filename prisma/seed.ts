@@ -6,992 +6,810 @@ import {
   PrismaClient,
   TeamRole,
   TranslationStatus,
+  UserRole,
 } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import 'dotenv/config'
 
 const prisma = new PrismaClient()
 
-async function createTestUsers() {
-  const users = [
-    {
-      name: 'Олександр',
-      email: 'alex@test.com',
-      password: 'password123',
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex',
-    },
-    {
-      name: 'Марія',
-      email: 'maria@test.com',
-      password: 'password123',
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=maria',
-    },
-    {
-      name: 'Іван',
-      email: 'ivan@test.com',
-      password: 'password123',
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ivan',
-    },
-    {
-      name: 'Анна',
-      email: 'anna@test.com',
-      password: 'password123',
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=anna',
-    },
-    {
-      name: 'Дмитро',
-      email: 'dmytro@test.com',
-      password: 'password123',
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dmytro',
-    },
+const seededEmails = [
+  'admin@honni.local',
+  'yuna@honni.local',
+  'ren@honni.local',
+  'mira@honni.local',
+  'kai@honni.local',
+  'sora@honni.local',
+  'alex@test.com',
+  'maria@test.com',
+  'ivan@test.com',
+  'anna@test.com',
+  'dmytro@test.com',
+]
+
+const oldNovelSlugs = [
+  'magister-nevedeniya',
+  'system-administrator',
+  'rozhdennyy-voinom',
+  'lyubov-i-magiya',
+  'put-mecha',
+  'kofeynya-na-krayu-sveta',
+  'posledniy-geroy',
+  'teni-starogo-tokio',
+  'zapiski-podpolnogo-maga',
+]
+
+const novelsData = [
+  {
+    title: 'Хроніки місячного архіва',
+    slug: 'hroniky-misiachnoho-arhiva',
+    originalName: '月光書庫の年代記',
+    author: 'Аой Сакамото',
+    description:
+      'Лін, помічниця бібліотекаря з провінційного міста, знаходить архів, де книги переписують майбутнє. Кожна прочитана сторінка відкриває нову гілку долі, але за кожну правку світ забирає спогад.',
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.TRANSLATING,
+    releaseYear: 2024,
+    averageRating: 4.9,
+    viewCount: 28450,
+    genres: ['fantasy', 'mystery', 'drama'],
+    tags: ['magic-academy', 'ancient-library', 'slow-burn'],
+    publishers: ['Kadokawa Beans Bunko'],
+    chapters: 12,
+    team: 'moon-rabbit',
+  },
+  {
+    title: 'Я переродився як фінальний бос, але хочу відкрити чайну',
+    slug: 'finalnyi-bos-i-chaina',
+    originalName: 'ラスボスだけど喫茶店を開きたい',
+    author: 'Хару Нанасе',
+    description:
+      'Колишній офісний працівник прокидається в тілі демона, якого герої мають перемогти в останньому томі роману. Замість війни він орендує будиночок біля тракту й варить чай для мандрівників.',
+    coverUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.TRANSLATING,
+    releaseYear: 2023,
+    averageRating: 4.7,
+    viewCount: 19820,
+    genres: ['isekai', 'comedy', 'slice-of-life'],
+    tags: ['villain-protagonist', 'cozy', 'food'],
+    publishers: ['MF Books'],
+    chapters: 10,
+    team: 'foxglove',
+  },
+  {
+    title: 'Лицарка без мани',
+    slug: 'lytsarka-bez-many',
+    originalName: '魔力ゼロの騎士令嬢',
+    author: 'Міна Кірісава',
+    description:
+      'У королівстві, де статус визначає кількість мани, донька герцога не має жодної іскри магії. Вона бере меч, тренується потай і доводить академії, що дисципліна може перемогти талант.',
+    coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.COMPLETED,
+    translationStatus: TranslationStatus.COMPLETED,
+    releaseYear: 2022,
+    averageRating: 4.8,
+    viewCount: 24110,
+    genres: ['action', 'fantasy', 'romance'],
+    tags: ['strong-heroine', 'academy', 'swordplay'],
+    publishers: ['Overlap Novels'],
+    chapters: 14,
+    team: 'moon-rabbit',
+  },
+  {
+    title: 'Після титрів сьомого світу',
+    slug: 'pislia-tytriv-somoho-svitu',
+    originalName: '七番目の世界のエンドロール',
+    author: 'Рен Амагі',
+    description:
+      'Герой уже шість разів рятував різні світи й щоразу повертався до порожньої кімнати. Сьомий світ зустрічає його не монстрами, а людьми, які знають про попередні фінали.',
+    coverUrl: 'https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.HIATUS,
+    releaseYear: 2024,
+    averageRating: 4.6,
+    viewCount: 13640,
+    genres: ['isekai', 'psychological', 'drama'],
+    tags: ['loop', 'tragic-past', 'plot-twist'],
+    publishers: ['Dengeki Bunko'],
+    chapters: 8,
+    team: 'starfall',
+  },
+  {
+    title: 'Пошта для богів забутих храмів',
+    slug: 'poshta-dlia-bohiv-zabutykh-hramiv',
+    originalName: '忘れられた神々への郵便',
+    author: 'Юі Морі',
+    description:
+      'Кур’єрка Нана доставляє листи тим богам, про яких перестали молитися. Кожен конверт може повернути храм до життя або остаточно стерти його ім’я з пам’яті людей.',
+    coverUrl: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.TRANSLATING,
+    releaseYear: 2023,
+    averageRating: 4.5,
+    viewCount: 11390,
+    genres: ['fantasy', 'drama', 'slice-of-life'],
+    tags: ['gods', 'journey', 'melancholy'],
+    publishers: ['Kadokawa Beans Bunko'],
+    chapters: 9,
+    team: 'starfall',
+  },
+  {
+    title: 'Регресор відкрив крамницю артефактів',
+    slug: 'rehresor-vidkryv-kramnytsiu-artefaktiv',
+    originalName: '回帰者の道具屋',
+    author: 'Со Джінхо',
+    description:
+      'Після поразки в останній битві мисливець повертається на десять років назад. Цього разу він не вступає до гільдії, а відкриває маленьку крамницю, де продає артефакти майбутнього.',
+    coverUrl: 'https://images.unsplash.com/photo-1516414447565-b14be0adf13e?w=500&h=750&fit=crop',
+    type: NovelType.KOREA,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.TRANSLATING,
+    releaseYear: 2024,
+    averageRating: 4.7,
+    viewCount: 17680,
+    genres: ['action', 'fantasy', 'comedy'],
+    tags: ['regression', 'dungeons', 'merchant'],
+    publishers: ['Naver Series'],
+    chapters: 11,
+    team: 'foxglove',
+  },
+  {
+    title: 'Синя весна екзорцистки',
+    slug: 'synia-vesna-ekzortsystky',
+    originalName: '祓い屋の青い春',
+    author: 'Каеде Фудзімото',
+    description:
+      'Старшокласниця Аса має бачити духів, але мріє про нормальне життя. Коли в її клас переводиться спадкоємець клану екзорцистів, доводиться обирати між тишею і правдою.',
+    coverUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.ONGOING,
+    translationStatus: TranslationStatus.TRANSLATING,
+    releaseYear: 2022,
+    averageRating: 4.4,
+    viewCount: 9270,
+    genres: ['romance', 'mystery', 'supernatural'],
+    tags: ['school', 'exorcists', 'urban-fantasy'],
+    publishers: ['Dengeki Bunko'],
+    chapters: 7,
+    team: 'moon-rabbit',
+  },
+  {
+    title: 'Підземелля під книгарнею',
+    slug: 'pidzemellia-pid-knyharneiu',
+    originalName: '書店地下の迷宮',
+    author: 'Нацу Окамото',
+    description:
+      'Антикварна книгарня в Кіото приховує сходи до підземелля, яке змінюється щоночі. Продавець і постійна покупчиня укладають угоду: вона малює мапи, він шукає книги, що зникли зі світу.',
+    coverUrl: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=500&h=750&fit=crop',
+    type: NovelType.JAPAN,
+    status: NovelStatus.SUSPENDED,
+    translationStatus: TranslationStatus.DROPPED,
+    releaseYear: 2021,
+    averageRating: 4.2,
+    viewCount: 6840,
+    genres: ['mystery', 'fantasy'],
+    tags: ['dungeon', 'books', 'kyoto'],
+    publishers: ['MF Books'],
+    chapters: 6,
+    team: 'starfall',
+  },
+]
+
+type SeedNovel = (typeof novelsData)[number]
+
+async function cleanupSeedData() {
+  const slugs = [...oldNovelSlugs, ...novelsData.map((novel) => novel.slug)]
+  const teamSlugs = ['moon-rabbit', 'foxglove', 'starfall', 'mangalib', 'hikari', 'natsume']
+  const announcementTitles = [
+    'Добірка тижня: магія, пригоди та нові світи',
+    'Нова глава Магістра неведення',
+    'Форум ожив: шукають перекладачів',
+    'Новий сезон перекладів на honni',
+    'Тайтл тижня: Хроніки місячного архіва',
+    'Команди шукають редакторів і перекладачів',
   ]
 
-  const createdUsers = []
-  for (const userData of users) {
-    const passwordHash = await bcrypt.hash(userData.password, 12)
-    const user = await prisma.user.upsert({
-      where: { email: userData.email },
-      update: {
-        name: userData.name,
-        image: userData.image,
-        passwordHash,
-        emailVerified: new Date(),
-      },
-      create: {
-        name: userData.name,
-        email: userData.email,
-        image: userData.image,
-        passwordHash,
-        role: userData.email === 'alex@test.com' ? 'ADMIN' : 'USER',
-        emailVerified: new Date(),
-      },
-    })
-    createdUsers.push(user)
-  }
-
-  // Ensure admin user exists for moderation
-  const adminEmail = 'admin@honni.local'
-  const adminPasswordHash = await bcrypt.hash('admin123', 12)
-  const adminUser = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {
-      name: 'Адмін',
-      role: 'ADMIN',
-      passwordHash: adminPasswordHash,
-      emailVerified: new Date(),
-    },
-    create: {
-      name: 'Адмін',
-      email: adminEmail,
-      image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-      passwordHash: adminPasswordHash,
-      role: 'ADMIN',
-      emailVerified: new Date(),
+  await prisma.notification.deleteMany({
+    where: {
+      OR: [
+        { user: { email: { in: seededEmails } } },
+        { novel: { slug: { in: slugs } } },
+      ],
     },
   })
-  console.log('Admin user:', adminUser.email)
-  console.log('Created test users:', createdUsers.map(u => u.name).join(', '))
-  return [adminUser, ...createdUsers]
+  await prisma.forumTopic.deleteMany({
+    where: {
+      OR: [
+        { user: { email: { in: seededEmails } } },
+        { title: { contains: 'seed:' } },
+      ],
+    },
+  })
+  await prisma.comment.deleteMany({
+    where: {
+      OR: [
+        { user: { email: { in: seededEmails } } },
+        { novel: { slug: { in: slugs } } },
+      ],
+    },
+  })
+  await prisma.novel.deleteMany({ where: { slug: { in: slugs } } })
+  await prisma.team.deleteMany({ where: { slug: { in: teamSlugs } } })
+  await prisma.announcement.deleteMany({ where: { title: { in: announcementTitles } } })
+  await prisma.user.deleteMany({ where: { email: { in: seededEmails } } })
+
+  const unusedEntitySlugs = [
+    ...new Set([
+      ...novelsData.flatMap((novel) => [...novel.genres, ...novel.tags]),
+      'isekai',
+      'romance',
+      'action',
+      'fantasy',
+      'comedy',
+      'drama',
+      'adventures',
+      'everyday-life',
+      'school',
+      'historical',
+      'psychology',
+      'strong-hero',
+      'slow-pace',
+    ]),
+  ]
+  await prisma.tag.deleteMany({ where: { slug: { in: unusedEntitySlugs } } })
+  await prisma.genre.deleteMany({ where: { slug: { in: unusedEntitySlugs } } })
+  await prisma.author.deleteMany({ where: { name: { in: novelsData.map((novel) => novel.author) } } })
+  await prisma.publisher.deleteMany({ where: { name: { in: [...new Set(novelsData.flatMap((novel) => novel.publishers))] } } })
 }
 
-async function createForumTopics(users: any[], categories: any[]) {
+async function createUsers() {
+  const passwordHash = await bcrypt.hash('admin123', 12)
+  const readerPasswordHash = await bcrypt.hash('reader123', 12)
+
+  const users = await Promise.all([
+    prisma.user.create({
+      data: {
+        name: 'Адмін honni',
+        email: 'admin@honni.local',
+        passwordHash,
+        role: UserRole.ADMIN,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=honni-admin',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'Юна Рідер',
+        email: 'yuna@honni.local',
+        passwordHash: readerPasswordHash,
+        role: UserRole.USER,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=yuna',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'Рен Перекладач',
+        email: 'ren@honni.local',
+        passwordHash: readerPasswordHash,
+        role: UserRole.USER,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=ren',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'Міра Редакторка',
+        email: 'mira@honni.local',
+        passwordHash: readerPasswordHash,
+        role: UserRole.USER,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=mira',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'Кай Коментатор',
+        email: 'kai@honni.local',
+        passwordHash: readerPasswordHash,
+        role: UserRole.USER,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=kai',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'Сора Бета',
+        email: 'sora@honni.local',
+        passwordHash: readerPasswordHash,
+        role: UserRole.USER,
+        emailVerified: new Date(),
+        image: 'https://api.dicebear.com/9.x/avataaars/svg?seed=sora',
+      },
+    }),
+  ])
+
+  console.log('Seed users:', users.map((user) => user.email).join(', '))
+  return users
+}
+
+async function createForumCategories() {
+  return Promise.all([
+    prisma.forumCategory.upsert({
+      where: { slug: 'discussion' },
+      update: { name: 'Обговорення', description: 'Враження від тайтлів, теорії та рекомендації', color: '#6366f1', order: 1 },
+      create: { name: 'Обговорення', slug: 'discussion', description: 'Враження від тайтлів, теорії та рекомендації', color: '#6366f1', order: 1 },
+    }),
+    prisma.forumCategory.upsert({
+      where: { slug: 'team-search' },
+      update: { name: 'Пошук команди', description: 'Набір перекладачів, редакторів і коректорів', color: '#22c55e', order: 2 },
+      create: { name: 'Пошук команди', slug: 'team-search', description: 'Набір перекладачів, редакторів і коректорів', color: '#22c55e', order: 2 },
+    }),
+    prisma.forumCategory.upsert({
+      where: { slug: 'suggestions' },
+      update: { name: 'Пропозиції', description: 'Ідеї для сайту та читача', color: '#f59e0b', order: 3 },
+      create: { name: 'Пропозиції', slug: 'suggestions', description: 'Ідеї для сайту та читача', color: '#f59e0b', order: 3 },
+    }),
+    prisma.forumCategory.upsert({
+      where: { slug: 'bugs' },
+      update: { name: 'Помилки', description: 'Проблеми з главами або інтерфейсом', color: '#ef4444', order: 4 },
+      create: { name: 'Помилки', slug: 'bugs', description: 'Проблеми з главами або інтерфейсом', color: '#ef4444', order: 4 },
+    }),
+  ])
+}
+
+async function createTaxonomy() {
+  const genres = await Promise.all([
+    ['Ісейкай', 'isekai'],
+    ['Наукова фантастика', 'sci-fi'],
+    ['Екшен', 'action'],
+    ['Бойові мистецтва', 'martial-arts'],
+    ['Гарем', 'harem'],
+    ['Героїчне фентезі', 'heroic-fantasy'],
+    ['Джьосей', 'josei'],
+    ['Для дорослих 16+', 'adult-16'],
+    ['Для дорослих 18+', 'adult-18'],
+    ['Драма', 'drama'],
+    ['Ігрове', 'game'],
+    ['Історичне', 'historical'],
+    ['Комедія', 'comedy'],
+    ['Мелодрама', 'melodrama'],
+    ['Меха', 'mecha'],
+    ['Мілітаризм', 'military'],
+    ['Повсякденність', 'slice-of-life'],
+    ['Пригоди', 'adventure'],
+    ['Психологія', 'psychological'],
+    ['Романтика', 'romance'],
+    ['Надприродне', 'supernatural'],
+    ['Спорт', 'sports'],
+    ['Сейнен', 'seinen'],
+    ['Сянься', 'xianxia'],
+    ['Сюаньхуа', 'xuanhuan'],
+    ['Сьодзьо', 'shoujo'],
+    ['Сьонен', 'shounen'],
+    ['Трагедія', 'tragedy'],
+    ['Трилер', 'thriller'],
+    ['Жахи', 'horror'],
+    ['Уся', 'wuxia'],
+    ['Фантастика', 'speculative-fiction'],
+    ['Фанфіки', 'fanfiction'],
+    ['Фентезі', 'fantasy'],
+    ['Шкільне життя', 'school-life'],
+    ['Еччі', 'ecchi'],
+    ['Гумор', 'humor'],
+    ['Яой', 'yaoi'],
+    ['Містика', 'mystery'],
+  ].map(([name, slug]) => prisma.genre.upsert({
+    where: { slug },
+    update: { name },
+    create: { name, slug },
+  })))
+
+  const tags = await Promise.all([
+    ['Магічна академія', 'magic-academy'],
+    ['Стародавня бібліотека', 'ancient-library'],
+    ['Повільна романтика', 'slow-burn'],
+    ['Протагоніст-лиходій', 'villain-protagonist'],
+    ['Затишна атмосфера', 'cozy'],
+    ['Їжа та чай', 'food'],
+    ['Сильна героїня', 'strong-heroine'],
+    ['Академія', 'academy'],
+    ['Фехтування', 'swordplay'],
+    ['Петля часу', 'loop'],
+    ['Трагічне минуле', 'tragic-past'],
+    ['Сюжетний поворот', 'plot-twist'],
+    ['Боги', 'gods'],
+    ['Подорож', 'journey'],
+    ['Меланхолія', 'melancholy'],
+    ['Регресія', 'regression'],
+    ['Підземелля', 'dungeons'],
+    ['Крамниця', 'merchant'],
+    ['Школа', 'school'],
+    ['Екзорцисти', 'exorcists'],
+    ['Міське фентезі', 'urban-fantasy'],
+    ['Книги', 'books'],
+    ['Кіото', 'kyoto'],
+    ['Данж', 'dungeon'],
+  ].map(([name, slug]) => prisma.tag.create({ data: { name, slug } })))
+
+  const publishers = await Promise.all(
+    [...new Set(novelsData.flatMap((novel) => novel.publishers))]
+      .map((name) => prisma.publisher.create({ data: { name, slug: slugify(name) } }))
+  )
+
+  const authors = await Promise.all(
+    novelsData.map((novel) => prisma.author.create({ data: { name: novel.author, slug: slugify(novel.author) } }))
+  )
+
+  return { genres, tags, publishers, authors }
+}
+
+async function createTeams(users: Awaited<ReturnType<typeof createUsers>>) {
+  const teams = await Promise.all([
+    prisma.team.create({
+      data: {
+        name: 'Moon Rabbit',
+        slug: 'moon-rabbit',
+        description: 'Перекладаємо магічні академії, романтичне фентезі та атмосферні ранобе.',
+        avatarUrl: 'https://api.dicebear.com/9.x/shapes/svg?seed=moon-rabbit',
+      },
+    }),
+    prisma.team.create({
+      data: {
+        name: 'Foxglove',
+        slug: 'foxglove',
+        description: 'Команда для ісейкаїв, регресорів, бойових тайтлів і затишних комедій.',
+        avatarUrl: 'https://api.dicebear.com/9.x/shapes/svg?seed=foxglove',
+      },
+    }),
+    prisma.team.create({
+      data: {
+        name: 'Starfall',
+        slug: 'starfall',
+        description: 'Любимо містичні історії, меланхолійне фентезі та складні сюжетні петлі.',
+        avatarUrl: 'https://api.dicebear.com/9.x/shapes/svg?seed=starfall',
+      },
+    }),
+  ])
+
+  const memberships = [
+    { user: 0, team: 0, role: TeamRole.owner },
+    { user: 2, team: 0, role: TeamRole.admin },
+    { user: 3, team: 0, role: TeamRole.member },
+    { user: 2, team: 1, role: TeamRole.owner },
+    { user: 4, team: 1, role: TeamRole.member },
+    { user: 3, team: 2, role: TeamRole.owner },
+    { user: 5, team: 2, role: TeamRole.member },
+  ]
+
+  await prisma.teamMembership.createMany({
+    data: memberships.map((membership) => ({
+      userId: users[membership.user].id,
+      teamId: teams[membership.team].id,
+      role: membership.role,
+    })),
+  })
+
+  return teams
+}
+
+async function createNovels(
+  taxonomy: Awaited<ReturnType<typeof createTaxonomy>>,
+  teams: Awaited<ReturnType<typeof createTeams>>
+) {
+  const novels = []
+
+  for (const novelData of novelsData) {
+    const team = teams.find((item) => item.slug === novelData.team)!
+    const novel = await prisma.novel.create({
+      data: {
+        title: novelData.title,
+        slug: novelData.slug,
+        originalName: novelData.originalName,
+        description: novelData.description,
+        coverUrl: novelData.coverUrl,
+        type: novelData.type,
+        status: novelData.status,
+        translationStatus: novelData.translationStatus,
+        releaseYear: novelData.releaseYear,
+        averageRating: novelData.averageRating,
+        viewCount: novelData.viewCount,
+        moderationStatus: ModerationStatus.APPROVED,
+      },
+    })
+
+    await prisma.novelGenre.createMany({
+      data: novelData.genres.map((slug) => ({
+        novelId: novel.id,
+        genreId: taxonomy.genres.find((genre) => genre.slug === slug)!.id,
+      })),
+    })
+
+    await prisma.novelTag.createMany({
+      data: novelData.tags.map((slug) => ({
+        novelId: novel.id,
+        tagId: taxonomy.tags.find((tag) => tag.slug === slug)!.id,
+      })),
+    })
+
+    await prisma.novelPublisher.createMany({
+      data: novelData.publishers.map((name) => ({
+        novelId: novel.id,
+        publisherId: taxonomy.publishers.find((publisher) => publisher.name === name)!.id,
+      })),
+    })
+
+    await prisma.novelAuthor.create({
+      data: {
+        novelId: novel.id,
+        authorId: taxonomy.authors.find((author) => author.name === novelData.author)!.id,
+      },
+    })
+
+    for (let chapterNumber = 1; chapterNumber <= novelData.chapters; chapterNumber++) {
+      await prisma.chapter.create({
+        data: {
+          novelId: novel.id,
+          teamId: team.id,
+          number: chapterNumber,
+          volume: chapterNumber > 8 ? 2 : 1,
+          title: chapterTitle(novelData, chapterNumber),
+          content: generateChapterContent(novelData, chapterNumber),
+          moderationStatus: ModerationStatus.APPROVED,
+          createdAt: new Date(Date.now() - (novelData.chapters - chapterNumber) * 86400000),
+        },
+      })
+    }
+
+    novels.push(novel)
+  }
+
+  console.log('Seed novels:', novels.length)
+  return novels
+}
+
+async function createAnnouncements() {
+  await prisma.announcement.createMany({
+    data: [
+      {
+        title: 'Новий сезон перекладів на honni',
+        description: 'Добірка ранобе про магічні академії, регресорів, богів і затишні пригоди вже в каталозі.',
+        posterUrl: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1400&h=560&fit=crop',
+        linkUrl: '/catalog',
+        linkType: 'page',
+        tag: 'featured',
+        sortOrder: 1,
+      },
+      {
+        title: 'Тайтл тижня: Хроніки місячного архіва',
+        description: 'Бібліотека, що переписує майбутнє, і героїня, яка платить спогадами за кожну зміну.',
+        posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1400&h=560&fit=crop',
+        linkUrl: '/novel/hroniky-misiachnoho-arhiva',
+        linkType: 'novel',
+        tag: 'new',
+        sortOrder: 2,
+      },
+      {
+        title: 'Команди шукають редакторів і перекладачів',
+        description: 'Moon Rabbit, Foxglove і Starfall відкриті до співпраці над новими главами.',
+        posterUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1400&h=560&fit=crop',
+        linkUrl: '/forum',
+        linkType: 'forum',
+        tag: 'popular',
+        sortOrder: 3,
+      },
+    ],
+  })
+}
+
+async function createForum(users: Awaited<ReturnType<typeof createUsers>>, categories: any[], novels: any[]) {
   const topics = [
     {
-      title: 'Чудова нова новела!',
-      content: 'Знайшов чудову новелу в жанрі ісейкай. Дуже рекомендую до прочитання! Хтось ще читав?',
-      categorySlug: 'discussion',
-      userIndex: 0,
+      title: 'seed: Який тайтл із нової добірки читати першим?',
+      content: 'Дивлюся на "Лицарку без мани" і "Регресора з крамницею". Хочу щось із сильним розвитком героя, але без надмірної темряви.',
+      category: 'discussion',
+      user: 1,
+      novel: novels[2].id,
     },
     {
-      title: 'Помилка при завантаженні глави',
-      content: 'При спробі відкрити главу 5 новели "Магистр неведения" виникає помилка. Прошу виправити.',
-      categorySlug: 'bugs',
-      userIndex: 1,
+      title: 'seed: Moon Rabbit шукає коректора для магічного фентезі',
+      content: 'Потрібна людина, яка любить академії, акуратні терміни й може вичитувати 1-2 глави на тиждень.',
+      category: 'team-search',
+      user: 2,
+      novel: novels[0].id,
     },
     {
-      title: 'Шукаю перекладачів для нової новели',
-      content: 'Є бажання перекласти популярну японську новелу. Потрібні: перекладач, редактор, тайпер.',
-      categorySlug: 'team-search',
-      userIndex: 2,
+      title: 'seed: Пропозиція: окрема полиця для затишних ранобе',
+      content: 'Було б зручно мати швидкий фільтр для спокійних історій без великої кількості боїв.',
+      category: 'suggestions',
+      user: 3,
     },
     {
-      title: 'Пропозиція щодо темної теми',
-      content: 'Було б непогано додати можливість вибору темної теми для читання вночі.',
-      categorySlug: 'suggestions',
-      userIndex: 3,
-    },
-    {
-      title: 'Який ваш улюблений жанр?',
-      content: 'Цікаво дізнатися, який жанр найбільше подобається спільноті. Мій улюблений - ісейкай!',
-      categorySlug: 'offtopic',
-      userIndex: 4,
-    },
-    {
-      title: 'Проблема з реєстрацією',
-      content: 'Не можу зареєструватися на сайті. Після введення даних сторінка просто оновлюється.',
-      categorySlug: 'bugs',
-      userIndex: 0,
-    },
-    {
-      title: 'Обговорення нової глави Магистр неведения',
-      content: 'Щойно вийшла нова глава! Що думаєте про сюжет? Мені здається, що головний герой нарешті знайшов своє покликання.',
-      categorySlug: 'discussion',
-      userIndex: 1,
-    },
-    {
-      title: 'Потрібен тайпер для команди',
-      content: 'Наша команда шукає тайпера для роботи над новелами в жанрі романтика. Звертатися в особисті.',
-      categorySlug: 'team-search',
-      userIndex: 2,
+      title: 'seed: Обговорення фіналу "Лицарки без мани"',
+      content: 'Фінальна дуель вийшла неочікувано камерною. Як вам рішення авторки з епілогом?',
+      category: 'discussion',
+      user: 4,
+      novel: novels[2].id,
     },
   ]
 
   const createdTopics = []
-  await prisma.forumTopic.deleteMany({
-    where: { title: { in: topics.map((topic) => topic.title) } },
-  })
-
-  for (const topicData of topics) {
-    const category = categories.find(c => c.slug === topicData.categorySlug)
-    const user = users[topicData.userIndex]
-
-    const topic = await prisma.forumTopic.create({
+  for (const topic of topics) {
+    const category = categories.find((item) => item.slug === topic.category)!
+    const created = await prisma.forumTopic.create({
       data: {
-        title: topicData.title,
-        content: topicData.content,
-        userId: user.id,
+        title: topic.title,
+        content: topic.content,
+        userId: users[topic.user].id,
         categoryId: category.id,
+        novelId: topic.novel,
         moderationStatus: ModerationStatus.APPROVED,
       },
     })
-    createdTopics.push(topic)
+    createdTopics.push(created)
   }
 
-  console.log('Created forum topics:', createdTopics.length)
-  return createdTopics
-}
-
-async function createForumComments(users: any[], topics: any[]) {
-  const commentsData = [
-    { topicIndex: 0, userIndex: 1, content: 'Дякую за рекомендацію! Обов\'язково спробую почитати.' },
-    { topicIndex: 0, userIndex: 2, content: 'Теж читав, дуже захоплююча новела!' },
-    { topicIndex: 0, userIndex: 3, content: 'Погоджуюсь, один з кращих ісейкаїв останнього часу.' },
-    { topicIndex: 1, userIndex: 0, content: 'Спробуйте очистити кеш браузера та спробувати знову.' },
-    { topicIndex: 1, userIndex: 4, content: 'У мене теж була така проблема, але сама вирішилась.' },
-    { topicIndex: 2, userIndex: 1, content: 'Можу допомогти з перекладом! Маю досвід.' },
-    { topicIndex: 2, userIndex: 3, content: 'А я можу редагувати. Пишіть в особисті.' },
-    { topicIndex: 3, userIndex: 0, content: 'Чудова ідея! Темна тема дуже потрібна.' },
-    { topicIndex: 4, userIndex: 2, content: 'Мій улюблений - романтика та фентезі!' },
-    { topicIndex: 4, userIndex: 0, content: 'Обожнюю комедію та ісейкай.' },
-    { topicIndex: 5, userIndex: 3, content: 'Спробуйте використати інший браузер.' },
-    { topicIndex: 5, userIndex: 1, content: 'У мене一切都 працює. Може проблема в акаунті?' },
-    { topicIndex: 6, userIndex: 4, content: 'Так, глава чудова! Герой розвивається як персонаж.' },
-    { topicIndex: 6, userIndex: 0, content: 'Не можу дочекатися наступної глави!' },
-  ]
-
-  const createdComments = []
-  for (const commentData of commentsData) {
-    const comment = await prisma.forumComment.create({
-      data: {
-        content: commentData.content,
-        userId: users[commentData.userIndex].id,
-        topicId: topics[commentData.topicIndex].id,
-      },
-    })
-    createdComments.push(comment)
-  }
-
-  console.log('Created forum comments:', createdComments.length)
-  return createdComments
-}
-
-async function createTopicVotes(users: any[], topics: any[]) {
-  const votesData = [
-    { topicIndex: 0, userIndex: 1, value: 1 },
-    { topicIndex: 0, userIndex: 2, value: 1 },
-    { topicIndex: 0, userIndex: 3, value: 1 },
-    { topicIndex: 1, userIndex: 2, value: -1 },
-    { topicIndex: 2, userIndex: 0, value: 1 },
-    { topicIndex: 2, userIndex: 3, value: 1 },
-    { topicIndex: 3, userIndex: 1, value: 1 },
-    { topicIndex: 3, userIndex: 4, value: 1 },
-    { topicIndex: 4, userIndex: 0, value: 1 },
-    { topicIndex: 5, userIndex: 2, value: -1 },
-    { topicIndex: 6, userIndex: 1, value: 1 },
-    { topicIndex: 6, userIndex: 2, value: 1 },
-    { topicIndex: 6, userIndex: 3, value: 1 },
-    { topicIndex: 7, userIndex: 4, value: 1 },
-  ]
-
-  for (const voteData of votesData) {
-    await prisma.forumTopicVote.upsert({
-      where: {
-        userId_topicId: {
-          userId: users[voteData.userIndex].id,
-          topicId: topics[voteData.topicIndex].id,
-        },
-      },
-      update: { value: voteData.value },
-      create: {
-        userId: users[voteData.userIndex].id,
-        topicId: topics[voteData.topicIndex].id,
-        value: voteData.value,
-      },
-    })
-  }
-
-  console.log('Created topic votes:', votesData.length)
-}
-
-async function createNovelComments(users: any[], novels: any[]) {
-  const commentsData = [
-    { novelIndex: 0, userIndex: 0, content: 'Чудова новела! Головний герой неймовірно розвивається протягом історії.' },
-    { novelIndex: 0, userIndex: 1, content: 'Мене затягнуло з перших сторінок. Рекомендую всім!' },
-    { novelIndex: 1, userIndex: 2, content: 'Системний адміністратор - класика жанру. Читав всю ніч!' },
-    { novelIndex: 1, userIndex: 3, content: 'Погоджуюсь, одна з найкращих ісейкай новел.' },
-    { novelIndex: 2, userIndex: 4, content: 'Непогано, але темп розповіді міг би бути швидшим.' },
-    { novelIndex: 3, userIndex: 0, content: 'Романтика на найвищому рівні! Два головних герої - просто ідеал.' },
-    { novelIndex: 4, userIndex: 1, content: 'Гострий сюжет та цікаві бойові сцени. Читаю далі!' },
-    { novelIndex: 5, userIndex: 2, content: 'Затишна атмосфера та милі персонажі. Захоплює.' },
-    { novelIndex: 6, userIndex: 3, content: 'Епічний сюжет та непередбачувані повороти. Рекомендую!' },
-    { novelIndex: 7, userIndex: 4, content: 'Цікава концепція, але переклад призупинився. Шкода.' },
-  ]
-
-  const createdComments = []
-  await prisma.comment.deleteMany({
-    where: {
-      userId: { in: users.map((user) => user.id) },
-      novelId: { in: novels.map((novel) => novel.id) },
-    },
+  await prisma.forumComment.createMany({
+    data: [
+      { topicId: createdTopics[0].id, userId: users[2].id, content: 'Для розвитку героя бери "Лицарку". Там дуже добре показані тренування й ціна дисципліни.' },
+      { topicId: createdTopics[0].id, userId: users[5].id, content: 'А я б почав із регресора. Там легший тон і багато приємної економіки світу.' },
+      { topicId: createdTopics[1].id, userId: users[4].id, content: 'Можу допомогти з тестовою вичиткою. Люблю терміни магічних систем.' },
+      { topicId: createdTopics[3].id, userId: users[1].id, content: 'Епілог спокійний, але саме тому працює. Після дуелей героям потрібна тиша.' },
+    ],
   })
 
-  for (const commentData of commentsData) {
-    const comment = await prisma.comment.create({
-      data: {
-        content: commentData.content,
-        userId: users[commentData.userIndex].id,
-        novelId: novels[commentData.novelIndex].id,
-      },
-    })
-    createdComments.push(comment)
-  }
-
-  console.log('Created novel comments:', createdComments.length)
-  return createdComments
+  await prisma.forumTopicVote.createMany({
+    data: [
+      { topicId: createdTopics[0].id, userId: users[2].id, value: 1 },
+      { topicId: createdTopics[0].id, userId: users[3].id, value: 1 },
+      { topicId: createdTopics[1].id, userId: users[4].id, value: 1 },
+      { topicId: createdTopics[2].id, userId: users[1].id, value: 1 },
+      { topicId: createdTopics[3].id, userId: users[5].id, value: 1 },
+    ],
+  })
 }
 
-async function createAnnouncements() {
-  const announcements = [
-    {
-      title: 'Добірка тижня: магія, пригоди та нові світи',
-      description: 'Почніть з популярних тайтлів і знайдіть історію для вечірнього читання.',
-      posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&h=500&fit=crop',
-      linkUrl: '/catalog',
-      linkType: 'page',
-      tag: 'featured',
-      sortOrder: 1,
-    },
-    {
-      title: 'Нова глава Магістра неведення',
-      description: 'Герой робить перші кроки у світі, де магія вирішує все.',
-      posterUrl: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?w=1200&h=500&fit=crop',
-      linkUrl: '/novel/magister-nevedeniya',
-      linkType: 'novel',
-      tag: 'new',
-      sortOrder: 2,
-    },
-    {
-      title: 'Форум ожив: шукають перекладачів',
-      description: 'Команди обговорюють нові проєкти та набирають учасників.',
-      posterUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200&h=500&fit=crop',
-      linkUrl: '/forum',
-      linkType: 'forum',
-      tag: 'popular',
-      sortOrder: 3,
-    },
+async function createLibraryActivity(users: Awaited<ReturnType<typeof createUsers>>, novels: any[], teams: any[]) {
+  const items = [
+    { user: 1, novel: 0, rating: 5, status: BookmarkStatus.reading, position: 6 },
+    { user: 1, novel: 2, rating: 5, status: BookmarkStatus.completed, position: 14 },
+    { user: 2, novel: 1, rating: 4, status: BookmarkStatus.reading, position: 3 },
+    { user: 3, novel: 4, rating: 5, status: BookmarkStatus.planned, position: null },
+    { user: 4, novel: 5, rating: 4, status: BookmarkStatus.reading, position: 7 },
+    { user: 5, novel: 6, rating: 4, status: BookmarkStatus.planned, position: null },
   ]
 
-  await prisma.announcement.deleteMany({
-    where: { title: { in: announcements.map((announcement) => announcement.title) } },
+  for (const item of items) {
+    await prisma.rating.create({
+      data: { userId: users[item.user].id, novelId: novels[item.novel].id, value: item.rating },
+    })
+    await prisma.favorite.create({
+      data: { userId: users[item.user].id, novelId: novels[item.novel].id },
+    })
+    await prisma.bookmark.create({
+      data: {
+        userId: users[item.user].id,
+        novelId: novels[item.novel].id,
+        status: item.status,
+        readingPosition: item.position,
+      },
+    })
+  }
+
+  await prisma.teamFollow.createMany({
+    data: [
+      { userId: users[1].id, teamId: teams[0].id },
+      { userId: users[1].id, teamId: teams[1].id },
+      { userId: users[4].id, teamId: teams[0].id },
+      { userId: users[5].id, teamId: teams[2].id },
+    ],
   })
 
-  await prisma.announcement.createMany({ data: announcements })
-  console.log('Created announcements:', announcements.length)
-}
+  await prisma.comment.createMany({
+    data: [
+      { userId: users[1].id, novelId: novels[0].id, content: 'Атмосфера архіву неймовірна. Дуже подобається ціна за магію спогадів.' },
+      { userId: users[2].id, novelId: novels[1].id, content: 'Фінальний бос із чайною - саме той затишний хаос, який хотілося читати ввечері.' },
+      { userId: users[3].id, novelId: novels[2].id, content: 'Сильна героїня без мани написана переконливо, без легких перемог.' },
+      { userId: users[4].id, novelId: novels[5].id, content: 'Регресор із крамницею має приємну економіку світу й нормальний гумор.' },
+    ],
+  })
 
-async function createTeamMemberships(users: any[], teams: any[]) {
-  const memberships = [
-    { userIndex: 0, teamIndex: 0, role: TeamRole.owner },
-    { userIndex: 1, teamIndex: 0, role: TeamRole.admin },
-    { userIndex: 2, teamIndex: 0, role: TeamRole.member },
-    { userIndex: 3, teamIndex: 1, role: TeamRole.owner },
-    { userIndex: 4, teamIndex: 1, role: TeamRole.member },
-    { userIndex: 5, teamIndex: 2, role: TeamRole.owner },
-  ]
-
-  for (const membership of memberships) {
-    await prisma.teamMembership.upsert({
-      where: {
-        userId_teamId: {
-          userId: users[membership.userIndex].id,
-          teamId: teams[membership.teamIndex].id,
-        },
-      },
-      update: { role: membership.role },
-      create: {
-        userId: users[membership.userIndex].id,
-        teamId: teams[membership.teamIndex].id,
-        role: membership.role,
-      },
-    })
-  }
-
-  console.log('Created team memberships:', memberships.length)
-}
-
-async function createUserLibraryData(users: any[], novels: any[]) {
-  const libraryItems = [
-    { userIndex: 0, novelIndex: 0, rating: 5, status: BookmarkStatus.reading, readingPosition: 3 },
-    { userIndex: 0, novelIndex: 1, rating: 4, status: BookmarkStatus.planned, readingPosition: null },
-    { userIndex: 1, novelIndex: 0, rating: 5, status: BookmarkStatus.reading, readingPosition: 5 },
-    { userIndex: 1, novelIndex: 3, rating: 4, status: BookmarkStatus.completed, readingPosition: 8 },
-    { userIndex: 2, novelIndex: 2, rating: 5, status: BookmarkStatus.completed, readingPosition: 10 },
-    { userIndex: 3, novelIndex: 4, rating: 4, status: BookmarkStatus.reading, readingPosition: 2 },
-    { userIndex: 4, novelIndex: 5, rating: 5, status: BookmarkStatus.completed, readingPosition: 7 },
-    { userIndex: 5, novelIndex: 6, rating: 4, status: BookmarkStatus.planned, readingPosition: null },
-  ]
-
-  for (const item of libraryItems) {
-    const user = users[item.userIndex]
-    const novel = novels[item.novelIndex]
-
-    await prisma.rating.upsert({
-      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
-      update: { value: item.rating },
-      create: { userId: user.id, novelId: novel.id, value: item.rating },
-    })
-
-    await prisma.favorite.upsert({
-      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
-      update: {},
-      create: { userId: user.id, novelId: novel.id },
-    })
-
-    await prisma.bookmark.upsert({
-      where: { userId_novelId: { userId: user.id, novelId: novel.id } },
-      update: {
-        status: item.status,
-        readingPosition: item.readingPosition,
-      },
-      create: {
-        userId: user.id,
-        novelId: novel.id,
-        status: item.status,
-        readingPosition: item.readingPosition,
-      },
-    })
-  }
-
-  console.log('Created ratings/favorites/bookmarks:', libraryItems.length)
-}
-
-async function createNotifications(users: any[], novels: any[], teams: any[]) {
   const notifications = []
-
-  for (const novel of novels.slice(0, 5)) {
-    const chapter = await prisma.chapter.findFirst({
-      where: { novelId: novel.id },
-      orderBy: { number: 'desc' },
-    })
-
+  for (const novel of novels.slice(0, 4)) {
+    const chapter = await prisma.chapter.findFirst({ where: { novelId: novel.id }, orderBy: { number: 'desc' } })
     if (!chapter) continue
-
-    notifications.push({
-      userId: users[0].id,
-      type: 'NEW_CHAPTER',
-      novelId: novel.id,
-      chapterId: chapter.id,
-      teamId: teams[0].id,
-      isRead: false,
-    })
     notifications.push({
       userId: users[1].id,
-      type: 'NEW_CHAPTER',
       novelId: novel.id,
       chapterId: chapter.id,
-      teamId: teams[1]?.id || teams[0].id,
-      isRead: novel.slug === 'magister-nevedeniya',
+      teamId: chapter.teamId,
+      type: 'NEW_CHAPTER',
+      isRead: false,
     })
   }
-
-  await prisma.notification.deleteMany({
-    where: { userId: { in: users.map((user) => user.id) } },
-  })
-
-  if (notifications.length > 0) {
-    await prisma.notification.createMany({ data: notifications })
-  }
-
-  console.log('Created notifications:', notifications.length)
+  await prisma.notification.createMany({ data: notifications })
 }
 
-async function main() {
-  // Create forum categories
-  const forumCategories = await Promise.all([
-    prisma.forumCategory.upsert({
-      where: { slug: 'bugs' },
-      update: { name: 'Помилки', description: 'Повідомлення про помилки' },
-      create: { name: 'Помилки', slug: 'bugs', description: 'Повідомлення про помилки', color: '#ef4444', order: 1 },
-    }),
-    prisma.forumCategory.upsert({
-      where: { slug: 'discussion' },
-      update: { name: 'Обговорення', description: 'Загальні питання та обговорення' },
-      create: { name: 'Обговорення', slug: 'discussion', description: 'Загальні питання та обговорення', color: '#6366f1', order: 2 },
-    }),
-    prisma.forumCategory.upsert({
-      where: { slug: 'team-search' },
-      update: { name: 'Пошук команди', description: 'Пошук команди для перекладу' },
-      create: { name: 'Пошук команди', slug: 'team-search', description: 'Пошук команди для перекладу', color: '#22c55e', order: 3 },
-    }),
-    prisma.forumCategory.upsert({
-      where: { slug: 'suggestions' },
-      update: { name: 'Пропозиції', description: 'Ваші ідеї та пропозиції' },
-      create: { name: 'Пропозиції', slug: 'suggestions', description: 'Ваші ідеї та пропозиції', color: '#f59e0b', order: 4 },
-    }),
-    prisma.forumCategory.upsert({
-      where: { slug: 'offtopic' },
-      update: { name: 'Офтоп', description: 'Все інше' },
-      create: { name: 'Офтоп', slug: 'offtopic', description: 'Все інше', color: '#6b7280', order: 5 },
-    }),
-  ])
-
-  console.log('Created forum categories:', forumCategories.map(c => c.name).join(', '))
-
-  // Create genres
-  const genres = await Promise.all([
-    prisma.genre.upsert({
-      where: { slug: 'isekai' },
-      update: {},
-      create: { name: 'Ісейкай', slug: 'isekai' },
-    }),
-    prisma.genre.upsert({
-      where: { slug: 'romance' },
-      update: {},
-      create: { name: 'Романтика', slug: 'romance' },
-    }),
-    prisma.genre.upsert({
-      where: { slug: 'action' },
-      update: {},
-      create: { name: 'Екшен', slug: 'action' },
-    }),
-    prisma.genre.upsert({
-      where: { slug: 'fantasy' },
-      update: {},
-      create: { name: 'Фентезі', slug: 'fantasy' },
-    }),
-    prisma.genre.upsert({
-      where: { slug: 'comedy' },
-      update: {},
-      create: { name: 'Комедія', slug: 'comedy' },
-    }),
-    prisma.genre.upsert({
-      where: { slug: 'drama' },
-      update: {},
-      create: { name: 'Драма', slug: 'drama' },
-    }),
-  ])
-
-  // Create publishers
-  const publishers = await Promise.all([
-    prisma.publisher.upsert({
-      where: { name: 'Kadokawa' },
-      update: {},
-      create: { name: 'Kadokawa', slug: 'kadokawa' },
-    }),
-    prisma.publisher.upsert({
-      where: { name: 'Shueisha' },
-      update: {},
-      create: { name: 'Shueisha', slug: 'shueisha' },
-    }),
-    prisma.publisher.upsert({
-      where: { name: 'MEDIA FACTORY' },
-      update: {},
-      create: { name: 'MEDIA FACTORY', slug: 'media-factory' },
-    }),
-    prisma.publisher.upsert({
-      where: { name: 'OVERLAP' },
-      update: {},
-      create: { name: 'OVERLAP', slug: 'overlap' },
-    }),
-  ])
-
-  // Create authors
-  const authors = await Promise.all([
-    prisma.author.upsert({
-      where: { name: 'Алекс Кун' },
-      update: {},
-      create: { name: 'Алекс Кун', slug: 'aleks-kun' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Риэ Ямагато' },
-      update: {},
-      create: { name: 'Риэ Ямагато', slug: 'rie-yamagato' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Коджи Огура' },
-      update: {},
-      create: { name: 'Коджи Огура', slug: 'kodzhi-ogura' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Юки Ариму' },
-      update: {},
-      create: { name: 'Юки Ариму', slug: 'yuki-arimu' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Рю Ханада' },
-      update: {},
-      create: { name: 'Рю Ханада', slug: 'ryu-hanada' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Мина Кото' },
-      update: {},
-      create: { name: 'Мина Кото', slug: 'mina-koto' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Дайго Кавамура' },
-      update: {},
-      create: { name: 'Дайго Кавамура', slug: 'daigo-kawamura' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Юсуке Мори' },
-      update: {},
-      create: { name: 'Юсуке Мори', slug: 'yusuke-mori' },
-    }),
-    prisma.author.upsert({
-      where: { name: 'Акира Фуджи' },
-      update: {},
-      create: { name: 'Акира Фуджи', slug: 'akira-fudzhi' },
-    }),
-  ])
-
-  // Create teams
-  const teams = await Promise.all([
-    prisma.team.upsert({
-      where: { name: 'MangaLib' },
-      update: {},
-      create: { name: 'MangaLib', slug: 'mangalib', description: 'Лучший перевод манги и новел' },
-    }),
-    prisma.team.upsert({
-      where: { name: 'Hikari' },
-      update: {},
-      create: { name: 'Hikari', slug: 'hikari', description: 'Японская классика и современные работы' },
-    }),
-    prisma.team.upsert({
-      where: { name: 'Natsume' },
-      update: {},
-      create: { name: 'Natsume', slug: 'natsume', description: 'Исекаи и фэнтези' },
-    }),
-  ])
-
-  // Create tags
-  const tags = await Promise.all([
-    prisma.tag.upsert({
-      where: { slug: 'adventures' },
-      update: {},
-      create: { name: 'Пригоди', slug: 'adventures' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'everyday-life' },
-      update: {},
-      create: { name: 'Повсякденність', slug: 'everyday-life' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'school' },
-      update: {},
-      create: { name: 'Школа', slug: 'school' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'historical' },
-      update: {},
-      create: { name: 'Історичний', slug: 'historical' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'psychology' },
-      update: {},
-      create: { name: 'Психологія', slug: 'psychology' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'strong-hero' },
-      update: {},
-      create: { name: 'Сильний герой', slug: 'strong-hero' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'slow-pace' },
-      update: {},
-      create: { name: 'Повільний темп', slug: 'slow-pace' },
-    }),
-    prisma.tag.upsert({
-      where: { slug: 'comedy' },
-      update: {},
-      create: { name: 'Комедія', slug: 'comedy' },
-    }),
-  ])
-
-  // Create novels
-  const novelsData = [
-    {
-      title: 'Магистр неведения',
-      slug: 'magister-nevedeniya',
-      originalName: '無知の大魔術師',
-      authorName: 'Алекс Кун',
-      description:
-        'Обычный программист внезапно переродился в мире магии. Теперь он — маг, который ничего не знает о своём мире, но обладает силой, способной изменить расстановку сил.',
-      coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=600&fit=crop',
-      averageRating: 4.8,
-      viewCount: 15420,
-      type: NovelType.ORIGINAL,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.TRANSLATING,
-      releaseYear: 2023,
-      genres: { isekai: true, fantasy: true },
-      tags: ['adventures', 'strong-hero', 'school'],
-      publishers: ['OVERLAP'],
-    },
-    {
-      title: 'Системный администратор',
-      slug: 'system-administrator',
-      originalName: 'システム管理者',
-      authorName: 'Риэ Ямагато',
-      description:
-        'Бывший айтишник, погибший от переработки, переродился в теле мальчика из аристократической семьи. В новом мире он находит систему — тот самый интерфейс администратора, но теперь он управляет государством.',
-      coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=600&fit=crop',
-      averageRating: 4.6,
-      viewCount: 12350,
-      type: NovelType.JAPAN,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.TRANSLATING,
-      releaseYear: 2022,
-      genres: { isekai: true, comedy: true },
-      tags: ['adventures', 'slow-pace', 'everyday-life'],
-      publishers: ['Kadokawa'],
-    },
-    {
-      title: 'Рождённый воином',
-      slug: 'rozhdennyy-voinom',
-      originalName: '戦士として生まれた',
-      authorName: 'Коджи Огура',
-      description:
-        'В мире, где сила определяет всё, родители мечтали о сыне-маге. Но судьба распорядилась иначе — их сын стал величайшим воином, которого когда-либо видел этот мир.',
-      coverUrl: 'https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?w=400&h=600&fit=crop',
-      averageRating: 4.5,
-      viewCount: 9870,
-      type: NovelType.JAPAN,
-      status: NovelStatus.COMPLETED,
-      translationStatus: TranslationStatus.COMPLETED,
-      releaseYear: 2021,
-      genres: { action: true, fantasy: true },
-      tags: ['strong-hero', 'historical'],
-      publishers: ['Shueisha'],
-    },
-    {
-      title: 'Любовь и магия',
-      slug: 'lyubov-i-magiya',
-      originalName: '愛と魔法',
-      authorName: 'Юки Ариму',
-      description:
-        'Два студента магической академии: один — гениальный маг, другая — талантливая, но ленивая. Их случайная встреча запускает цепочку событий, которая изменит академию навсегда.',
-      coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop',
-      averageRating: 4.3,
-      viewCount: 8560,
-      type: NovelType.JAPAN,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.TRANSLATING,
-      releaseYear: 2023,
-      genres: { romance: true, fantasy: true, comedy: true },
-      tags: ['school', 'everyday-life'],
-      publishers: ['MEDIA FACTORY'],
-    },
-    {
-      title: 'Путь меча',
-      slug: 'put-mecha',
-      originalName: '剣の道',
-      authorName: 'Рю Ханада',
-      description:
-        'Бывший чемпион по фехтованию неожиданно для себя оказался в средневековом мире, где искусство меча определяет социальный статус. Теперь ему предстоит пройти путь от простого крестьянина до величайшего мастера клинка.',
-      coverUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=600&fit=crop',
-      averageRating: 4.7,
-      viewCount: 11200,
-      type: NovelType.JAPAN,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.HIATUS,
-      releaseYear: 2022,
-      genres: { action: true, fantasy: true, drama: true },
-      tags: ['adventures', 'strong-hero'],
-      publishers: ['OVERLAP'],
-    },
-    {
-      title: 'Кофейня на краю мира',
-      slug: 'kofeynya-na-krayu-sveta',
-      originalName: '世界端のカフェ',
-      authorName: 'Мина Кото',
-      description:
-        'Обычная девушка-студентка унаследовала странную кофейню от бабушки. Каждый посетитель этого места приносит с собой удивительную историю. За чашкой кофе раскрываются самые сокровенные тайны.',
-      coverUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=600&fit=crop',
-      averageRating: 4.4,
-      viewCount: 6340,
-      type: NovelType.JAPAN,
-      status: NovelStatus.COMPLETED,
-      translationStatus: TranslationStatus.COMPLETED,
-      releaseYear: 2021,
-      genres: { romance: true, drama: true },
-      tags: ['everyday-life', 'slow-pace'],
-      publishers: ['Kadokawa'],
-    },
-    {
-      title: 'Последний герой',
-      slug: 'posledniy-geroy',
-      originalName: '最後の英雄',
-      authorName: 'Дайго Кавамура',
-      description:
-        'В мире, где демоны давно уничтожены, а герои стали легендой, один молодой парень случайно обнаруживает, что он — последний потомок легендарного героя. И его ждёт путь, полный испытаний.',
-      coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&h=600&fit=crop',
-      averageRating: 4.6,
-      viewCount: 7890,
-      type: NovelType.JAPAN,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.TRANSLATING,
-      releaseYear: 2023,
-      genres: { action: true, fantasy: true },
-      tags: ['adventures', 'strong-hero', 'psychology'],
-      publishers: ['Shueisha'],
-    },
-    {
-      title: 'Тени старого Токио',
-      slug: 'teni-starogo-tokio',
-      originalName: '古い東京の影',
-      authorName: 'Юсуке Мори',
-      description:
-        'Современный Токио хранит множество секретов. За неоновыми огнями скрываются тени древних кланов, магические ритуалы и монстры из японской мифологии. Обычный школьник случайно становится свидетелем битвы экзорцистов.',
-      coverUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=600&fit=crop',
-      averageRating: 4.5,
-      viewCount: 5670,
-      type: NovelType.JAPAN,
-      status: NovelStatus.SUSPENDED,
-      translationStatus: TranslationStatus.DROPPED,
-      releaseYear: 2022,
-      genres: { action: true, fantasy: true },
-      tags: ['school', 'strong-hero'],
-      publishers: ['MEDIA FACTORY'],
-    },
-    {
-      title: 'Записки подпольного мага',
-      slug: 'zapiski-podpolnogo-maga',
-      originalName: '地下魔導書',
-      authorName: 'Акира Фуджи',
-      description:
-        'В мире, где магия строго контролируется государством, молодой маг вынужден скрывать свои способности. Ведя двойную жизнь, он записывает свои приключения в секретный дневник.',
-      coverUrl: 'https://images.unsplash.com/photo-1516414447565-b14be0adf13e?w=400&h=600&fit=crop',
-      averageRating: 4.2,
-      viewCount: 4320,
-      type: NovelType.JAPAN,
-      status: NovelStatus.ONGOING,
-      translationStatus: TranslationStatus.TRANSLATING,
-      releaseYear: 2023,
-      genres: { fantasy: true, comedy: true },
-      tags: ['adventures', 'slow-pace', 'psychology'],
-      publishers: ['OVERLAP'],
-    },
+function chapterTitle(novel: SeedNovel, chapterNumber: number) {
+  const titles = [
+    'Перший лист із нового світу',
+    'Правило, яке всі забули',
+    'Нічний гість біля брами',
+    'Карта без півночі',
+    'Урок, що коштує спогаду',
+    'Чай після дуелі',
+    'Підземелля відкривається опівночі',
+    'Ім’я, написане на полях',
+    'Союз перед бурею',
+    'Тиша після закляття',
+    'Другий том: інший шлях',
+    'Скарб, який не можна продати',
+    'Остання сторінка сезону',
+    'Епілог під ранковим небом',
   ]
-
-  for (const novelData of novelsData) {
-    const {
-      genres: novelGenres,
-      tags: novelTags,
-      publishers: novelPublishers,
-      authorName,
-      ...novel
-    } = novelData
-
-    const createdNovel = await prisma.novel.upsert({
-      where: { slug: novel.slug },
-      update: {
-        ...novel,
-        moderationStatus: ModerationStatus.APPROVED,
-      },
-      create: {
-        ...novel,
-        moderationStatus: ModerationStatus.APPROVED,
-      },
-    })
-
-    // Link genres
-    for (const genreSlug of Object.keys(novelGenres)) {
-      const genre = genres.find((g) => g.slug === genreSlug)
-      if (genre) {
-        await prisma.novelGenre.upsert({
-          where: {
-            novelId_genreId: {
-              novelId: createdNovel.id,
-              genreId: genre.id,
-            },
-          },
-          update: {},
-          create: {
-            novelId: createdNovel.id,
-            genreId: genre.id,
-          },
-        })
-      }
-    }
-
-    // Link tags
-    if (novelTags) {
-      for (const tagSlug of novelTags) {
-        const tag = tags.find((t) => t.slug === tagSlug)
-        if (tag) {
-          await prisma.novelTag.upsert({
-            where: {
-              novelId_tagId: {
-                novelId: createdNovel.id,
-                tagId: tag.id,
-              },
-            },
-            update: {},
-            create: {
-              novelId: createdNovel.id,
-              tagId: tag.id,
-            },
-          })
-        }
-      }
-    }
-
-    // Link publisher
-    for (const pubName of novelPublishers) {
-      const publisher = publishers.find((p) => p.name === pubName)
-      if (publisher) {
-        await prisma.novelPublisher.upsert({
-          where: {
-            novelId_publisherId: {
-              novelId: createdNovel.id,
-              publisherId: publisher.id,
-            },
-          },
-          update: {},
-          create: {
-            novelId: createdNovel.id,
-            publisherId: publisher.id,
-          },
-        })
-      }
-    }
-
-    // Link author
-    const author = authors.find((a) => a.name === authorName)
-    if (author) {
-      await prisma.novelAuthor.upsert({
-        where: {
-          novelId_authorId: {
-            novelId: createdNovel.id,
-            authorId: author.id,
-          },
-        },
-        update: {},
-        create: {
-          novelId: createdNovel.id,
-          authorId: author.id,
-        },
-      })
-    }
-
-    // Create chapters
-    const chapterCount = Math.floor(Math.random() * 10) + 5
-    const team = teams[Math.floor(Math.random() * teams.length)]
-
-    await prisma.chapter.deleteMany({
-      where: { novelId: createdNovel.id },
-    })
-
-    for (let i = 1; i <= chapterCount; i++) {
-      await prisma.chapter.create({
-        data: {
-          novelId: createdNovel.id,
-          teamId: team.id,
-          title: `Глава ${i}`,
-          number: i,
-          content: generateChapterContent(i),
-          moderationStatus: ModerationStatus.APPROVED,
-        },
-      })
-    }
-
-    console.log(
-      `Created novel: ${novel.title} with ${chapterCount} chapters (team: ${team.name})`
-    )
-  }
-
-  // Get all created novels for comments
-  const allNovels = await Promise.all(
-    novelsData.map((novel) => prisma.novel.findUniqueOrThrow({ where: { slug: novel.slug } }))
-  )
-
-  // Create test users
-  const users = await createTestUsers()
-  await createTeamMemberships(users, teams)
-  await createAnnouncements()
-  await createUserLibraryData(users, allNovels)
-
-  // Create forum topics and comments
-  const topics = await createForumTopics(users, forumCategories)
-  await createForumComments(users, topics)
-  await createTopicVotes(users, topics)
-
-  // Create novel comments
-  await createNovelComments(users, allNovels)
-  await createNotifications(users, allNovels, teams)
+  return titles[chapterNumber - 1] || `${novel.title}: розділ ${chapterNumber}`
 }
 
-function generateChapterContent(chapterNum: number): string {
-  return `# Глава ${chapterNum}
+function generateChapterContent(novel: SeedNovel, chapterNumber: number) {
+  return `# ${chapterTitle(novel, chapterNumber)}
 
-Это первая глава истории. Здесь начинается увлекательное путешествие героя по новому миру.
+Перші рядки цього розділу відкривають ще один фрагмент історії **${novel.title}**. Герої вже знають, що світ не пробачає поспішних рішень, але кожен новий день приносить питання, на які немає простих відповідей.
 
-## Часть 1
+## Сцена перша
 
-Главный герой проснулся в незнакомом месте. Голова раскалывалась, а воспоминания смешивались в кучу.
+Ранок почався з дрібниці: шурхоту паперу, віддалених кроків і світла, що падало на край столу. Саме в таких дрібницях герої помічали зміни, які інші пропускали.
 
-> "Где я?" — подумал он, осматриваясь вокруг.
+> "Якщо історія повторюється, значить хтось залишив підказку між рядками".
 
-Комната была небольшой, но уютной. На столе лежали какие-то книги, а за окном виднелся сад.
+Ця думка не давала спокою. Попереду був шлях, де доведеться обирати між безпекою і правдою.
 
-### Что произошло?
+## Сцена друга
 
-Герой попытался вспомнить, как он здесь оказался. Последнее, что он помнил — это работа за компьютером до глубокой ночи.
+До вечора напруга стала відчутною. Союзники говорили пошепки, карти лежали розгорнутими, а за вікном повільно згасало місто. Ніхто не хотів визнавати, що найскладніше рішення вже майже ухвалене.
 
-- Ночь
-- Работа
-- Усталость
-- И... темнота
+- перевірити старі записи;
+- знайти людину, яка бачила початок конфлікту;
+- не довіряти першому очевидному поясненню;
+- залишити шлях для відступу.
 
-А потом он открыл глаза здесь.
-
-## Часть 2
-
-Спустя некоторое время герой понял, что произошло нечто невероятное. Он переродился!
-
-Это был новый мир с новыми правилами. И ему предстояло найти своё место в нём.
-
-\`\`\`
-Добро пожаловать в новый мир!
-\`\`\`
-
-Продолжение следует...
+Фінал розділу не став відповіддю. Він став дверима, які відчиняються лише для тих, хто готовий читати далі.
 `
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-zа-яіїєґ0-9]+/giu, '-')
+    .replace(/^-|-$/g, '')
+}
+
+async function main() {
+  await cleanupSeedData()
+  const users = await createUsers()
+  const categories = await createForumCategories()
+  const taxonomy = await createTaxonomy()
+  const teams = await createTeams(users)
+  const novels = await createNovels(taxonomy, teams)
+
+  await createAnnouncements()
+  await createForum(users, categories, novels)
+  await createLibraryActivity(users, novels, teams)
+
+  console.log('Seed completed')
+  console.log('Admin login: admin@honni.local / admin123')
+  console.log('Reader login: yuna@honni.local / reader123')
+}
+
 main()
-  .catch((e) => {
-    console.error(e)
+  .catch((error) => {
+    console.error(error)
     process.exit(1)
   })
   .finally(async () => {

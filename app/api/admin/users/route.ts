@@ -35,6 +35,7 @@ export async function GET(req: Request) {
           role: true,
           isBanned: true,
           createdAt: true,
+          lastSeen: true,
           _count: {
             select: { warnings: true },
           },

@@ -1,20 +1,27 @@
 import { NextResponse } from 'next/server'
-import { uploadToFTP, deleteFromFTP } from '@/lib/ftp'
+import { uploadToStorage, deleteFromStorage } from '@/lib/storage'
 import { prisma } from '@/lib/prisma'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
 import { prepareImageUpload } from '@/lib/image-upload'
 import { randomUUID } from 'crypto'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
-function extractFTPAvatarPath(url: string): { filename: string; folder: string } | null {
-  if (!url || !url.includes('edge-drive.cdn.express')) return null
-  const match = url.match(/\/avatars\/(.+)$/)
-  if (!match) return null
-  return { filename: match[1], folder: 'avatars' }
+function extractR2AvatarPath(url: string): string | null {
+  if (!url || !url.includes('cdn.honni.fun')) return null
+  return url.split('/').slice(-2).join('/') // avatars/{filename}
 }
 
 export async function POST(request: Request) {
   const session = await requireUser()
   if (isAuthResponse(session)) return session
+  const limit = rateLimit({
+    key: `upload-avatar:${session.user.id}`,
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!limit.success) {
+    return rateLimitResponse(limit, 'Ви завантажуєте аватарки занадто часто. Спробуйте пізніше.')
+  }
 
   try {
     const formData = await request.formData()
@@ -36,10 +43,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: image.error }, { status: 400 })
     }
 
-    const ext = image.extension
-    const filename = `${session.user.id}-${randomUUID()}.${ext}`
-
-    const url = await uploadToFTP(image.buffer, filename, 'avatars')
+    const filename = `avatars/${session.user.id}-${randomUUID()}.${image.extension}`
+    const url = await uploadToStorage(image.buffer, filename, image.contentType)
 
     // Update user avatar
     await prisma.user.update({
@@ -47,11 +52,11 @@ export async function POST(request: Request) {
       data: { image: url },
     })
 
-    // Delete old avatar if it existed and is hosted on FTP
+    // Delete old avatar if it existed on R2
     if (oldAvatarUrl) {
-      const oldPath = extractFTPAvatarPath(oldAvatarUrl)
+      const oldPath = extractR2AvatarPath(oldAvatarUrl)
       if (oldPath) {
-        await deleteFromFTP(oldPath.filename, oldPath.folder)
+        await deleteFromStorage(oldPath)
       }
     }
 

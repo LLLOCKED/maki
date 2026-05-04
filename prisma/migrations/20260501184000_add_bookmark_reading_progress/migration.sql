@@ -1,0 +1,1 @@
+ALTER TABLE "Bookmark" ADD COLUMN "readingProgress" INTEGER NOT NULL DEFAULT 0;

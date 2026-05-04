@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Sun, Moon, BookOpen, ChevronLeft, ChevronRight, Type } from 'lucide-react'
+import { Sun, Moon, BookOpen, ChevronLeft, ChevronRight, Type, Users } from 'lucide-react'
 
 type ReaderTheme = 'light' | 'dark' | 'sepia'
 type FontSize = 'sm' | 'md' | 'lg' | 'xl'
@@ -120,6 +120,12 @@ interface ReaderSettingsProps {
   hasNextChapter: boolean
   currentChapter: number
   totalChapters: number
+  translations?: {
+    key: string
+    label: string
+    selected: boolean
+    onSelect: () => void
+  }[]
 }
 
 export default function ReaderSettings({
@@ -141,24 +147,47 @@ export default function ReaderSettings({
   hasNextChapter,
   currentChapter,
   totalChapters,
+  translations = [],
 }: ReaderSettingsProps) {
   const contentWidthKeys = Object.keys(contentWidthLabels) as ContentWidth[]
   const currentIndex = contentWidthKeys.indexOf(currentContentWidth)
   return (
-    <div className="flex items-center justify-between gap-4 border-b p-4">
-      {/* Spacer for centering */}
-      <div className="hidden md:block flex-1" />
+    <div className="sticky top-0 z-30 border-b bg-background/95 p-3 backdrop-blur md:p-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      {/* Translation teams */}
+      <div className="col-span-3 flex min-w-0 items-center gap-2 overflow-x-auto md:col-span-1">
+        {translations.length > 0 && (
+          <>
+            <span className="shrink-0 text-xs text-muted-foreground">Переклад:</span>
+            <div className="flex min-w-0 gap-2 overflow-x-auto">
+              {translations.map((translation) => (
+                <Button
+                  key={translation.key}
+                  type="button"
+                  variant={translation.selected ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={translation.onSelect}
+                  className="h-8 shrink-0 gap-1"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="max-w-[10rem] truncate">{translation.label}</span>
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Centered navigation */}
-      <div className="flex items-center gap-2">
+      <div className="col-start-1 row-start-2 flex items-center justify-start gap-2 md:col-start-2 md:row-start-1 md:justify-center">
         <Button
           variant="outline"
           size="sm"
           onClick={onPrevChapter}
           disabled={!hasPrevChapter}
         >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Назад
+          <ChevronLeft className="h-4 w-4 md:mr-1" />
+          <span className="hidden md:inline">Назад</span>
         </Button>
         <span className="text-sm text-muted-foreground">
           {currentChapter} / {totalChapters}
@@ -169,13 +198,13 @@ export default function ReaderSettings({
           onClick={onNextChapter}
           disabled={!hasNextChapter}
         >
-          Вперед
-          <ChevronRight className="ml-1 h-4 w-4" />
+          <span className="hidden md:inline">Вперед</span>
+          <ChevronRight className="h-4 w-4 md:ml-1" />
         </Button>
       </div>
 
       {/* Settings on the right */}
-      <div className="flex items-center gap-2 flex-1 justify-end">
+      <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 md:row-start-1">
         {/* Font Size */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -266,7 +295,7 @@ export default function ReaderSettings({
 
         {/* Content Width Slider */}
         <div className="hidden items-center gap-2 md:flex">
-          <span className="text-xs text-muted-foreground">Ш</span>
+          <span className="text-xs text-muted-foreground">Ширина</span>
           <input
             type="range"
             min={0}
@@ -274,9 +303,10 @@ export default function ReaderSettings({
             value={currentIndex}
             onChange={(e) => onContentWidthChange(contentWidthKeys[Number(e.target.value)])}
             className="w-20 accent-primary"
+            aria-label="Ширина тексту"
           />
-          <span className="text-xs text-muted-foreground">Ш</span>
         </div>
+      </div>
       </div>
     </div>
   )

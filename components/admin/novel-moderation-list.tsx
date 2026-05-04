@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, XCircle, Loader2, ExternalLink } from 'lucide-react'
+import { toast } from 'react-toastify'
 
 interface Novel {
   id: string
@@ -39,8 +40,13 @@ export default function NovelModerationList({ novels }: NovelModerationProps) {
       })
 
       if (res.ok) {
+        toast.success(action === 'APPROVE' ? 'Новелу схвалено' : 'Новелу відхилено')
         router.refresh()
+      } else {
+        toast.error('Сталася помилка при обробці запиту')
       }
+    } catch (error) {
+      toast.error('Сталася помилка при обробці запиту')
     } finally {
       setLoadingId(null)
     }

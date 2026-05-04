@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { User, Ban, AlertTriangle, CheckCircle } from 'lucide-react'
+import UserPresence, { OnlineDot } from '@/components/user-presence'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -160,16 +161,20 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      {user.image ? (
-                        <img src={user.image} alt="" className="h-8 w-8 rounded-full object-cover" />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                          <User className="h-4 w-4" />
-                        </div>
-                      )}
+                      <div className="relative h-8 w-8 shrink-0">
+                        {user.image ? (
+                          <img src={user.image} alt="" className="h-8 w-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                            <User className="h-4 w-4" />
+                          </div>
+                        )}
+                        <OnlineDot lastSeen={user.lastSeen} className="absolute bottom-0 right-0 h-2.5 w-2.5 border" />
+                      </div>
                       <div>
                         <p className="font-medium">{user.name || 'Без імені'}</p>
                         <p className="text-xs text-muted-foreground">{user.email || '-'}</p>
+                        <UserPresence lastSeen={user.lastSeen} compact />
                       </div>
                     </div>
                   </TableCell>

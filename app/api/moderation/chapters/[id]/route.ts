@@ -22,7 +22,34 @@ export async function PATCH(
       data: {
         moderationStatus: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
       },
+      include: {
+        novel: { select: { authorId: true, type: true } },
+        team: { include: { members: { select: { userId: true } } } }
+      }
     })
+
+    // Logic: 
+    // 1. If ORIGINAL, notify novel author.
+    // 2. If translated, notify ONLY the team members who work on this novel/team.
+    let userIdsToNotify: string[] = []
+
+    if (chapter.novel.type === 'ORIGINAL' && chapter.novel.authorId) {
+      userIdsToNotify = [chapter.novel.authorId]
+    } else if (chapter.team) {
+      // Notify team members
+      userIdsToNotify = chapter.team.members.map(m => m.userId)
+    }
+
+    if (userIdsToNotify.length > 0) {
+      await prisma.notification.createMany({
+        data: userIdsToNotify.map(userId => ({
+          userId,
+          type: action === 'APPROVE' ? 'CHAPTER_APPROVED' : 'CHAPTER_REJECTED',
+          novelId: chapter.novelId,
+          chapterId: chapter.id,
+        }))
+      })
+    }
 
     // Log admin action
     await prisma.adminActivityLog.create({

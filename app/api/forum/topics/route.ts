@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createForumTopicSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
       where,
       include: {
         user: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, image: true, lastSeen: true },
         },
         category: {
           select: { id: true, name: true, slug: true, color: true },
@@ -44,6 +45,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireUser()
   if (isAuthResponse(session)) return session
+  const limit = rateLimit({
+    key: `forum-topic:${session.user.id}`,
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+  })
+  if (!limit.success) {
+    return rateLimitResponse(limit, 'Ви створюєте теми занадто часто. Спробуйте трохи пізніше.')
+  }
 
   try {
     const body = await parseJsonBody(request, createForumTopicSchema)
@@ -60,7 +69,7 @@ export async function POST(request: Request) {
       },
       include: {
         user: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, image: true, lastSeen: true },
         },
         category: {
           select: { id: true, name: true, slug: true, color: true },

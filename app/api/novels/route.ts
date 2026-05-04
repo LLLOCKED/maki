@@ -4,6 +4,7 @@ import { Prisma } from '@/lib/prisma-types'
 import { getOrderBySql, buildNovelWhereClause } from '@/lib/novels'
 import { createNovelSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
   try {
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
       const novelResults = await prisma.$queryRaw<any[]>`
         SELECT id FROM "Novel"
         WHERE "moderationStatus" = 'APPROVED'
+        AND "deletedAt" IS NULL
         AND ("title" ILIKE ${searchPattern}
           OR "originalName" ILIKE ${searchPattern})
         ORDER BY ${Prisma.raw(orderBySql)}
@@ -67,7 +69,7 @@ export async function GET(request: Request) {
             genres: { include: { genre: true } },
             authors: { include: { author: true } },
             chapters: {
-              where: { moderationStatus: 'APPROVED' },
+              where: { moderationStatus: 'APPROVED', deletedAt: null },
               orderBy: { createdAt: 'desc' },
               take: 1,
               select: {
@@ -88,6 +90,7 @@ export async function GET(request: Request) {
       const countResult = await prisma.$queryRaw<any[]>`
         SELECT COUNT(*) as cnt FROM "Novel"
         WHERE "moderationStatus" = 'APPROVED'
+        AND "deletedAt" IS NULL
         AND ("title" ILIKE ${searchPattern}
           OR "originalName" ILIKE ${searchPattern})
       `
@@ -100,7 +103,7 @@ export async function GET(request: Request) {
             genres: { include: { genre: true } },
             authors: { include: { author: true } },
             chapters: {
-              where: { moderationStatus: 'APPROVED' },
+              where: { moderationStatus: 'APPROVED', deletedAt: null },
               orderBy: { createdAt: 'desc' },
               take: 1,
               select: {
@@ -140,6 +143,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireUser()
   if (isAuthResponse(session)) return session
+  const limit = rateLimit({
+    key: `novel-create:${session.user.id}`,
+    limit: 5,
+    windowMs: 24 * 60 * 60 * 1000,
+  })
+  if (!limit.success) {
+    return rateLimitResponse(limit, 'Ви створюєте тайтли занадто часто. Спробуйте пізніше.')
+  }
 
   try {
     const body = await parseJsonBody(request, createNovelSchema)

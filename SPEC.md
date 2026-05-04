@@ -25,11 +25,9 @@
 ## 3. Data Models (Prisma Schema)
 
 ### Models
-- **User** — id, name, email, image, role, createdAt, accounts, favorites, teamMemberships
-- **Account** — NextAuth OAuth accounts
-- **Session** — NextAuth sessions
-- **Novel** — id, title, originalName, slug, description, coverUrl, type, status, translationStatus, releaseYear, averageRating, viewCount, moderationStatus, authorId
-- **Chapter** — id, title, number, content, novelId, teamId, moderationStatus
+- **User** — id, name, email, image, role, createdAt, accounts, favorites (Favorite[]), teamMemberships
+- **Novel** — id, title, originalName, slug, description, coverUrl, type, status, translationStatus, releaseYear, averageRating, viewCount, moderationStatus, authorId, favorites (Favorite[])
+- **Favorite** — id, userId, novelId, createdAt (links User and Novel)
 - **Genre** — id, name, slug
 - **Tag** — id, name, slug
 - **Author** — id, name

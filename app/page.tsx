@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import Image from 'next/image'
 import SmallNovelCard from '@/components/small-novel-card'
 import PosterNovelCard from '@/components/poster-novel-card'
 import ForumTopicCard from '@/components/forum/forum-topic-card'
@@ -52,7 +53,7 @@ async function getNovels(page: number = 0, limit: number = 8) {
       },
     },
     orderBy: [
-      { title: 'asc' },
+      { createdAt: 'desc' },
       { id: 'asc' },
     ],
     skip,
@@ -106,6 +107,8 @@ async function getLatestNovels() {
       coverUrl: true,
       type: true,
       isExplicit: true,
+      contentWarnings: true,
+      averageRating: true,
       createdAt: true,
       chapters: {
         where: { moderationStatus: 'APPROVED' },
@@ -268,12 +271,6 @@ export default async function HomePage() {
       </div>
       <div className="container mx-auto px-4 py-8">
 
-        <div className="mb-8">
-          <p className="text-muted-foreground">
-            {totalNovels} творів
-          </p>
-        </div>
-
         {totalNovels === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <BookOpen className="h-16 w-16 text-muted-foreground" aria-hidden="true" />
@@ -304,7 +301,7 @@ export default async function HomePage() {
                     >
                       <div className="relative flex h-16 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
                         {item.novel.coverUrl ? (
-                          <img src={item.novel.coverUrl} alt="" className="h-full w-full object-cover" />
+                          <Image src={item.novel.coverUrl} alt="" fill className="object-cover" sizes="48px" />
                         ) : (
                           <BookOpen className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
                         )}
@@ -324,9 +321,14 @@ export default async function HomePage() {
             {/* Horizontal Poster Section */}
             {latestSorted.length > 0 && (
               <div className="mb-8">
-                <div className="mb-4 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  <h2 className="text-xl font-semibold">Нові тайтли</h2>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-semibold">Нові тайтли</h2>
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/catalog?sortBy=created&sortOrder=desc">Більше</Link>
+                  </Button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                   {latestSorted.map((novel) => (
@@ -340,6 +342,8 @@ export default async function HomePage() {
                         authors: novel.authors.map(a => a.author.name),
                         type: novel.type,
                         isExplicit: novel.isExplicit,
+                        contentWarnings: novel.contentWarnings,
+                        averageRating: novel.averageRating,
                       }}
                     />
                   ))}
@@ -415,6 +419,8 @@ export default async function HomePage() {
                       <ForumTopicCard
                         key={topic.id}
                         topic={topic as any}
+                        hideVotes
+                        hideUserActivity
                       />
                     ))}
                   </div>
@@ -431,6 +437,8 @@ export default async function HomePage() {
                       <ForumTopicCard
                         key={topic.id}
                         topic={topic as any}
+                        hideVotes
+                        hideUserActivity
                       />
                     ))}
                   </div>

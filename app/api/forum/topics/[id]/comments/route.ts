@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
 import { forumCommentSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(
   request: Request,
@@ -10,6 +11,14 @@ export async function POST(
   const { id } = await params
   const session = await requireUser()
   if (isAuthResponse(session)) return session
+  const limit = rateLimit({
+    key: `forum-comment:${session.user.id}`,
+    limit: 8,
+    windowMs: 60 * 1000,
+  })
+  if (!limit.success) {
+    return rateLimitResponse(limit, 'Ви надсилаєте коментарі занадто часто. Спробуйте трохи пізніше.')
+  }
 
   try {
     const topicId = id
@@ -45,7 +54,7 @@ export async function POST(
       },
       include: {
         user: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, image: true, lastSeen: true },
         },
       },
     })

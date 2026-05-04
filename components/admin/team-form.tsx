@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { toast } from 'react-toastify'
 
 export default function TeamForm() {
   const router = useRouter()
@@ -16,7 +17,10 @@ export default function TeamForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) {
+      toast.error('Введіть назву команди')
+      return
+    }
 
     setIsLoading(true)
     try {
@@ -32,10 +36,10 @@ export default function TeamForm() {
         router.refresh()
       } else {
         const error = await res.json()
-        alert(error.error || 'Failed to create team')
+        toast.error(error.error || 'Не вдалось створити команду')
       }
     } catch (error) {
-      alert('Failed to create team')
+      toast.error('Не вдалось створити команду')
     } finally {
       setIsLoading(false)
     }
@@ -48,44 +52,43 @@ export default function TeamForm() {
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Назад к настройкам
+        Назад до налаштувань
       </Link>
 
       <Card>
         <CardHeader>
-          <CardTitle>Создание команды</CardTitle>
+          <CardTitle>Створення команди</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Название команды *</label>
+              <label className="text-sm font-medium">Назва команди *</label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Например: MangaLib"
+                placeholder="Наприклад: Honni Team"
                 className="mt-1"
-                required
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium">Описание</label>
+              <label className="text-sm font-medium">Опис</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Опишите вашу команду..."
+                placeholder="Опишіть вашу команду..."
                 className="mt-1 w-full rounded-md border bg-background p-3 text-sm"
                 rows={4}
               />
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" disabled={isLoading || !name.trim()}>
-                {isLoading ? 'Создание...' : 'Создать команду'}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Створення...' : 'Створити команду'}
               </Button>
               <Link href="/settings">
                 <Button type="button" variant="outline">
-                  Отмена
+                  Скасувати
                 </Button>
               </Link>
             </div>

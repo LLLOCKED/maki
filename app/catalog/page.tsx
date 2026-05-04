@@ -130,16 +130,30 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-3xl font-bold">Каталог</h1>
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Каталог</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Знайдено {total} новел
+          </p>
+        </div>
+      </div>
 
-      <Suspense fallback={<div>Завантаження...</div>}>
-        <CatalogFilters genres={genres} tags={tags} authors={authors} />
-      </Suspense>
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="hidden lg:block">
+          <div className="sticky top-20">
+            <Suspense fallback={<div>Завантаження...</div>}>
+              <CatalogFilters genres={genres} tags={tags} authors={authors} variant="sidebar" />
+            </Suspense>
+          </div>
+        </aside>
 
-      <div className="mt-6">
-        <p className="mb-4 text-sm text-muted-foreground">
-          Знайдено {total} новел
-        </p>
+        <div>
+          <div className="mb-6 lg:hidden">
+            <Suspense fallback={<div>Завантаження...</div>}>
+              <CatalogFilters genres={genres} tags={tags} authors={authors} />
+            </Suspense>
+          </div>
 
         {novels.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -150,7 +164,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
             {novels.map((novel) => (
               <CatalogCard
                 key={novel.id}
@@ -162,6 +176,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   )

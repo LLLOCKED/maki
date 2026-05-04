@@ -8,6 +8,7 @@ import Heartbeat from '@/components/heartbeat'
 import { auth } from '@/lib/auth'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://honni.fun'),
@@ -66,11 +67,13 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <Navbar session={session} />
-            <main className="min-h-screen">{children}</main>
-            <Heartbeat />
-            <Footer />
-            <ToastContainer position="top-center" />
+            <TooltipProvider>
+              <Navbar session={session} />
+              <main className="min-h-screen">{children}</main>
+              {session?.user?.id && <Heartbeat />}
+              <Footer />
+              <ToastContainer position="top-center" />
+            </TooltipProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>

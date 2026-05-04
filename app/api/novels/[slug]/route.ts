@@ -19,7 +19,7 @@ export async function GET(
   const { slug } = await params
   try {
     const novel = await prisma.novel.findUnique({
-      where: { slug },
+      where: { slug, deletedAt: null },
       include: {
         genres: {
           include: {
@@ -37,6 +37,7 @@ export async function GET(
           },
         },
         chapters: {
+          where: { deletedAt: null },
           orderBy: {
             number: 'asc',
           },
@@ -65,6 +66,44 @@ export async function GET(
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const role = (session as { user: { role?: string } }).user?.role
+  if (!['OWNER', 'ADMIN'].includes(role || '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { slug } = await params
+  try {
+    const oldNovel = await prisma.novel.findUnique({ where: { slug } })
+    
+    const novel = await prisma.novel.update({
+      where: { slug },
+      data: { deletedAt: new Date() },
+    })
+
+    // Delete cover image from FTP if it exists
+    if (oldNovel?.coverUrl) {
+      const path = extractFTPCoverPath(oldNovel.coverUrl)
+      if (path) {
+        await deleteFromFTP(path.filename, path.folder)
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting novel:', error)
+    return NextResponse.json({ error: 'Failed to delete novel' }, { status: 500 })
   }
 }
 
@@ -98,11 +137,13 @@ export async function PATCH(
       releaseYear,
       sourceUrl,
       isExplicit,
+      contentWarnings,
       donationUrl,
       genreIds,
       tagIds,
       publisherIds,
       authorIds,
+      deletedAt, // Support for restoring
     } = body
 
     // Build update data
@@ -116,7 +157,9 @@ export async function PATCH(
     if (releaseYear !== undefined) updateData.releaseYear = releaseYear ? parseInt(releaseYear) : null
     if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl || null
     if (isExplicit !== undefined) updateData.isExplicit = isExplicit
+    if (contentWarnings !== undefined) updateData.contentWarnings = Array.isArray(contentWarnings) ? contentWarnings : []
     if (donationUrl !== undefined) updateData.donationUrl = donationUrl || null
+    if (deletedAt !== undefined) updateData.deletedAt = deletedAt // Can be null to restore
 
     // Get old novel for cover deletion
     const oldNovel = await prisma.novel.findUnique({ where: { slug } })

@@ -2,15 +2,26 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell } from 'lucide-react'
+import { Bell, BellRing } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
 
 interface FavoriteButtonProps {
   novelId: string
   initialIsFavorited?: boolean
+  iconOnly?: boolean
 }
 
-export default function FavoriteButton({ novelId, initialIsFavorited = false }: FavoriteButtonProps) {
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json()
+    return data.error || fallback
+  } catch {
+    return fallback
+  }
+}
+
+export default function FavoriteButton({ novelId, initialIsFavorited = false, iconOnly = false }: FavoriteButtonProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited)
@@ -22,23 +33,32 @@ export default function FavoriteButton({ novelId, initialIsFavorited = false }: 
         const res = await fetch(`/api/favorites?novelId=${novelId}`, {
           method: 'DELETE',
         })
-        if (res.ok) {
-          setIsFavorited(false)
-          router.refresh()
+        if (!res.ok) {
+          toast.error(await readErrorMessage(res, 'Не вдалось вимкнути стеження'))
+          return
         }
+
+        setIsFavorited(false)
+        toast.success('Стеження вимкнено')
+        router.refresh()
       } else {
         const res = await fetch('/api/favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ novelId }),
         })
-        if (res.ok) {
-          setIsFavorited(true)
-          router.refresh()
+        if (!res.ok) {
+          toast.error(await readErrorMessage(res, 'Не вдалось увімкнути стеження'))
+          return
         }
+
+        setIsFavorited(true)
+        toast.success('Стеження увімкнено')
+        router.refresh()
       }
     } catch (error) {
       console.error('Favorite error:', error)
+      toast.error('Не вдалось оновити стеження')
     } finally {
       setIsLoading(false)
     }
@@ -50,10 +70,16 @@ export default function FavoriteButton({ novelId, initialIsFavorited = false }: 
       size="sm"
       onClick={handleToggle}
       disabled={isLoading}
-      className="gap-2"
+      className={iconOnly ? 'h-9 w-9 shrink-0 p-0' : 'gap-2'}
+      aria-label={isFavorited ? 'Вимкнути стеження' : 'Стежити за тайтлом'}
+      title={isFavorited ? 'Вимкнути стеження' : 'Стежити за тайтлом'}
     >
-      <Bell className={`h-4 w-4 ${isFavorited ? 'fill-primary text-primary' : ''}`} />
-      {isFavorited ? 'Стежите' : 'Стежити'}
+      {isFavorited ? (
+        <BellRing className="h-4 w-4 text-primary" />
+      ) : (
+        <Bell className="h-4 w-4" />
+      )}
+      {!iconOnly && (isFavorited ? 'Стежите' : 'Стежити')}
     </Button>
   )
 }

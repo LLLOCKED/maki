@@ -4,7 +4,20 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, BookOpen, Star } from 'lucide-react'
+import { BookOpen, Star } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+
+const contentWarningLabels: Record<string, string> = {
+  violence: 'Насилля',
+  gore: 'Кров\'яні сцени',
+  sexual: 'Сексуальний контент',
+  psychological: 'Психологічний тиск',
+  'self-harm': 'Самогубство/самопошкодження',
+}
 
 interface CatalogCardProps {
   novel: {
@@ -48,20 +61,24 @@ export default function CatalogCard({ novel }: CatalogCardProps) {
             </div>
           )}
           {novel.isExplicit && (
-            <div className="absolute top-2 left-2">
-              <span className="px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
-                18+
-              </span>
-            </div>
-          )}
-          {novel.contentWarnings && novel.contentWarnings.length > 0 && (
-            <div className="absolute top-2 right-2 flex flex-col gap-1">
-              {novel.contentWarnings.slice(0, 2).map((warning) => (
-                <span key={warning} className="px-1.5 py-0.5 text-xs text-white bg-red-500 rounded">
-                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="absolute top-2 left-2 px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold cursor-help">
+                  18+
                 </span>
-              ))}
-            </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-medium">Контент 18+</p>
+                {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+                  <>
+                    <p className="font-medium">Попередження:</p>
+                    {novel.contentWarnings.map((warning) => (
+                      <p key={warning}>{contentWarningLabels[warning] || warning}</p>
+                    ))}
+                  </>
+                )}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
 

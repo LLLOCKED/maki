@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { isAuthResponse, requireUser } from '@/lib/permissions'
 import { createTeamSchema, isValidationResponse, parseJsonBody } from '@/lib/validation'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 // Transliteration map for Ukrainian/Cyrillic to Latin
 const transliterationMap: Record<string, string> = {
@@ -69,6 +70,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireUser()
   if (isAuthResponse(session)) return session
+  const limit = rateLimit({
+    key: `team-create:${session.user.id}`,
+    limit: 3,
+    windowMs: 24 * 60 * 60 * 1000,
+  })
+  if (!limit.success) {
+    return rateLimitResponse(limit, 'Ви створюєте команди занадто часто. Спробуйте пізніше.')
+  }
 
   try {
     const body = await parseJsonBody(request, createTeamSchema)

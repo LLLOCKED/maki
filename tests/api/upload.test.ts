@@ -2,9 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Session } from 'next-auth'
 
 const uploadToFTPMock = vi.fn()
+const mkdirMock = vi.fn()
+const writeFileMock = vi.fn()
+const prepareImageUploadMock = vi.fn()
 
 vi.mock('@/lib/ftp', () => ({
   uploadToFTP: uploadToFTPMock,
+}))
+
+vi.mock('fs/promises', () => ({
+  mkdir: mkdirMock,
+  writeFile: writeFileMock,
+}))
+
+vi.mock('@/lib/image-upload', () => ({
+  prepareImageUpload: prepareImageUploadMock,
 }))
 
 const mockAuth = vi.fn()
@@ -25,6 +37,9 @@ describe('POST /api/upload', () => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue(null)
     uploadToFTPMock.mockResolvedValue('https://edge-drive.cdn.express/posters/test.png')
+    prepareImageUploadMock.mockResolvedValue({ buffer: Buffer.from('webp'), extension: 'webp', contentType: 'image/webp' })
+    mkdirMock.mockResolvedValue(undefined)
+    writeFileMock.mockResolvedValue(undefined)
   })
 
   it('rejects unauthenticated uploads', async () => {
@@ -45,6 +60,7 @@ describe('POST /api/upload', () => {
 
   it('rejects files with spoofed image MIME type', async () => {
     mockAuth.mockResolvedValue(createMockSession('user-id'))
+    prepareImageUploadMock.mockResolvedValue({ error: 'Invalid image content' })
     const formData = new FormData()
     formData.append('file', new File([new Uint8Array([1, 2, 3])], 'test.png', { type: 'image/png' }))
 
@@ -58,5 +74,26 @@ describe('POST /api/upload', () => {
 
     expect(response.status).toBe(400)
     expect(uploadToFTPMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to local poster storage when FTP upload fails', async () => {
+    mockAuth.mockResolvedValue(createMockSession('user-id'))
+    uploadToFTPMock.mockRejectedValue(new Error('FTP unavailable'))
+    const formData = new FormData()
+    formData.append('file', new File([new Uint8Array([1, 2, 3])], 'poster.png', { type: 'image/png' }))
+
+    const request = new Request('http://localhost/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const { POST } = await import('@/app/api/upload/route')
+    const response = await POST(request as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.url).toMatch(/^\/uploads\/posters\/.+\.webp$/)
+    expect(mkdirMock).toHaveBeenCalled()
+    expect(writeFileMock).toHaveBeenCalled()
   })
 })

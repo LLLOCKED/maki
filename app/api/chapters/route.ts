@@ -54,6 +54,22 @@ export async function POST(request: Request) {
           },
         },
       })
+
+      // Notify favorites
+      const favorites = await prisma.favorite.findMany({
+        where: { novelId },
+        select: { userId: true }
+      });
+      
+      await prisma.notification.createMany({
+        data: favorites.map(f => ({
+          userId: f.userId,
+          type: 'NEW_CHAPTER',
+          novelId,
+          chapterId: chapter.id,
+        }))
+      });
+
       return NextResponse.json(chapter, { status: 201 })
     } else {
       // For translated novels - team is required but any registered user can add
@@ -98,6 +114,23 @@ export async function POST(request: Request) {
           },
         },
       })
+
+      // Notify favorites
+      const favorites = await prisma.favorite.findMany({
+        where: { novelId },
+        select: { userId: true }
+      });
+      
+      await prisma.notification.createMany({
+        data: favorites.map(f => ({
+          userId: f.userId,
+          type: 'NEW_CHAPTER',
+          novelId,
+          chapterId: chapter.id,
+          teamId,
+        }))
+      });
+
       return NextResponse.json(chapter, { status: 201 })
     }
   } catch (error) {

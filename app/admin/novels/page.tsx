@@ -11,8 +11,7 @@ export default async function AdminNovelsPage() {
     redirect('/login')
   }
 
-  const sessionWithRole = session as { user: { id: string; role?: string } }
-  const role = sessionWithRole.user.role
+  const role = (session as { user: { role?: string } }).user?.role
   if (!['OWNER', 'ADMIN', 'MODERATOR'].includes(role || '')) {
     notFound()
   }
@@ -20,8 +19,8 @@ export default async function AdminNovelsPage() {
   const novels = await prisma.novel.findMany({
     where: { moderationStatus: 'PENDING' },
     include: {
-      genres: { include: { genre: true } },
       authors: { include: { author: true } },
+      genres: { include: { genre: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -30,10 +29,14 @@ export default async function AdminNovelsPage() {
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Модерація нвелів</CardTitle>
+          <CardTitle>Модерація новел</CardTitle>
         </CardHeader>
         <CardContent>
-          <NovelModerationList novels={novels as any} />
+          {novels.length === 0 ? (
+            <p className="text-muted-foreground">Немає новел на перевірці</p>
+          ) : (
+            <NovelModerationList novels={novels as any} />
+          )}
         </CardContent>
       </Card>
     </div>

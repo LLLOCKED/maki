@@ -64,6 +64,23 @@ export default function ChapterEditForm({ chapter, novelSlug }: ChapterEditFormP
     }
   }
 
+  async function uploadChapterImage(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/upload/chapter-image', {
+      method: 'POST',
+      body: formData,
+    })
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || 'Не вдалось завантажити зображення')
+    }
+
+    return data.url
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
@@ -113,6 +130,7 @@ export default function ChapterEditForm({ chapter, novelSlug }: ChapterEditFormP
                   textareaRef={textareaRef}
                   value={content}
                   onChange={setContent}
+                  uploadImage={uploadChapterImage}
                 />
               )}
               {isPreview ? (

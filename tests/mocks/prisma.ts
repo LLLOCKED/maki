@@ -54,6 +54,12 @@ export const mockPrisma = {
     create: vi.fn(),
     findMany: vi.fn(),
   },
+  contentReport: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+  },
 }
 
 vi.mock('@/lib/prisma', () => ({

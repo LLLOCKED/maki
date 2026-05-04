@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserPlus, X, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import UserPresence, { OnlineDot } from '@/components/user-presence'
 
 interface Member {
   id: string
@@ -17,13 +18,15 @@ interface Member {
     name: string | null
     email: string | null
     image: string | null
+    lastSeen?: Date | string | null
   }
 }
 
 interface SearchUser {
   id: string
-  name: string | null
-  image: string | null
+    name: string | null
+    image: string | null
+    lastSeen?: Date | string | null
 }
 
 interface AddTeamMemberProps {
@@ -202,7 +205,7 @@ export default function AddTeamMember({
                             handleSelectUser(user)
                           }}
                         >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                          <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                             {user.image ? (
                               <img
                                 src={user.image}
@@ -214,6 +217,7 @@ export default function AddTeamMember({
                                 {user.name?.[0] || '?'}
                               </span>
                             )}
+                            <OnlineDot lastSeen={user.lastSeen} className="absolute bottom-0 right-0 h-2.5 w-2.5 border" />
                           </div>
                           <span>{user.name || 'Користувач'}</span>
                         </Link>
@@ -274,7 +278,7 @@ export default function AddTeamMember({
             className="flex items-center justify-between rounded-lg border p-3"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                 {member.user.image ? (
                   <img
                     src={member.user.image}
@@ -286,6 +290,7 @@ export default function AddTeamMember({
                     {member.user.name?.[0] || '?'}
                   </span>
                 )}
+                <OnlineDot lastSeen={member.user.lastSeen} className="absolute bottom-0 right-0 h-3 w-3 border-2" />
               </div>
               <div>
                 <p className="font-medium">
@@ -300,9 +305,10 @@ export default function AddTeamMember({
                       : 'Учасник'}
                   </Badge>
                   {member.user.id === currentUserId && (
-                    <span className="text-xs text-muted-foreground">(вы)</span>
+                    <span className="text-xs text-muted-foreground">(ви)</span>
                   )}
                 </div>
+                <UserPresence lastSeen={member.user.lastSeen} compact />
               </div>
             </div>
 

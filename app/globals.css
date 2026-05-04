@@ -132,6 +132,23 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      linear-gradient(hsl(var(--background) / 0.82), hsl(var(--background) / 0.9)),
+      url('/static/images/back_light_theme.png');
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  .dark body {
+    background-image:
+      linear-gradient(hsl(var(--background) / 0.72), hsl(var(--background) / 0.86)),
+      url('/static/images/back_theme.png');
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
   }
 }
 
@@ -143,7 +160,7 @@
 
 .reader-dark {
   background-color: #070707;
-  color: #655356;
+  color: #d8d1c7;
 }
 
 .reader-sepia {
@@ -251,6 +268,10 @@
 
 .markdown-content a {
   @apply text-primary underline;
+}
+
+.markdown-content img {
+  @apply my-6 max-h-[80vh] w-auto max-w-full rounded-lg object-contain;
 }
 
 .markdown-content hr {

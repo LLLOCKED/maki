@@ -4,14 +4,15 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const query = searchParams.get('q')?.toLowerCase()
+  const type = searchParams.get('type') || 'all'
 
   if (!query || query.length < 2) {
     return NextResponse.json([])
   }
 
   try {
-    const [novels, teams, users] = await Promise.all([
-      prisma.novel.findMany({
+    const [novels, teams, users, topics] = await Promise.all([
+      type === 'all' || type === 'novel' ? prisma.novel.findMany({
         where: {
           moderationStatus: 'APPROVED',
           OR: [
@@ -27,8 +28,8 @@ export async function GET(request: Request) {
           originalName: true,
           coverUrl: true,
         },
-      }),
-      prisma.team.findMany({
+      }) : Promise.resolve([]),
+      type === 'all' || type === 'team' ? prisma.team.findMany({
         where: {
           name: { contains: query, mode: 'insensitive' },
         },
@@ -38,8 +39,8 @@ export async function GET(request: Request) {
           slug: true,
           name: true,
         },
-      }),
-      prisma.user.findMany({
+      }) : Promise.resolve([]),
+      type === 'all' || type === 'user' ? prisma.user.findMany({
         where: {
           name: { contains: query, mode: 'insensitive' },
         },
@@ -47,8 +48,27 @@ export async function GET(request: Request) {
         select: {
           id: true,
           name: true,
+          image: true,
+          lastSeen: true,
         },
-      }),
+      }) : Promise.resolve([]),
+      type === 'all' || type === 'forum' ? prisma.forumTopic.findMany({
+        where: {
+          moderationStatus: 'APPROVED',
+          OR: [
+            { title: { contains: query, mode: 'insensitive' } },
+            { content: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: { select: { name: true } },
+          _count: { select: { comments: true } },
+        },
+      }) : Promise.resolve([]),
     ])
 
     const results = [
@@ -66,7 +86,16 @@ export async function GET(request: Request) {
       ...users.map((u) => ({
         type: 'user' as const,
         id: u.id,
-        title: u.name || 'Пользовазовач',
+        title: u.name || 'Користувач',
+        coverUrl: u.image,
+        lastSeen: u.lastSeen,
+      })),
+      ...topics.map((topic) => ({
+        type: 'forum' as const,
+        id: topic.id,
+        title: topic.title,
+        subtitle: `${topic.category.name} • ${topic._count.comments} коментарів`,
+        content: topic.content,
       })),
     ]
 

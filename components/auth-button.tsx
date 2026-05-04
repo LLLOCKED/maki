@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -27,9 +28,11 @@ export default function AuthButton({ session }: AuthButtonProps) {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2 rounded-full">
             {sessionUser.user.image ? (
-              <img
+              <Image
                 src={sessionUser.user.image}
                 alt=""
+                width={32}
+                height={32}
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
@@ -43,9 +46,11 @@ export default function AuthButton({ session }: AuthButtonProps) {
         <DropdownMenuContent align="end" className="w-56">
           <div className="flex items-center justify-start gap-3 p-3">
             {sessionUser.user.image ? (
-              <img
+              <Image
                 src={sessionUser.user.image}
                 alt=""
+                width={40}
+                height={40}
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (

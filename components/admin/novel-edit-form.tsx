@@ -49,6 +49,7 @@ interface Novel {
   releaseYear: number | null
   sourceUrl: string | null
   isExplicit: boolean
+  contentWarnings: string[]
   donationUrl: string | null
   genres: { genre: Genre }[]
   tags: { tag: Tag }[]
@@ -77,6 +78,14 @@ const translationStatusOptions = [
   { value: 'COMPLETED', label: 'Завершено' },
 ]
 
+const contentWarningOptions = [
+  { value: 'violence', label: 'Насилля', color: 'bg-red-500' },
+  { value: 'gore', label: 'Кров\'яні сцени', color: 'bg-red-700' },
+  { value: 'sexual', label: 'Сексуальний контент', color: 'bg-purple-500' },
+  { value: 'psychological', label: 'Психологічний тиск', color: 'bg-yellow-500' },
+  { value: 'self-harm', label: 'Самогубство/самопошкодження', color: 'bg-orange-500' },
+]
+
 export default function NovelEditForm({ novel }: { novel: Novel }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -95,6 +104,7 @@ export default function NovelEditForm({ novel }: { novel: Novel }) {
   const [releaseYear, setReleaseYear] = useState(novel.releaseYear?.toString() || '')
   const [sourceUrl, setSourceUrl] = useState(novel.sourceUrl || '')
   const [isExplicit, setIsExplicit] = useState(novel.isExplicit)
+  const [contentWarnings, setContentWarnings] = useState<string[]>(novel.contentWarnings || [])
   const [donationUrl, setDonationUrl] = useState(novel.donationUrl || '')
 
   // Options
@@ -225,6 +235,7 @@ export default function NovelEditForm({ novel }: { novel: Novel }) {
           authorIds: selectedAuthors,
           sourceUrl: sourceUrl || null,
           isExplicit,
+          contentWarnings,
           donationUrl: donationUrl || null,
         }),
       })
@@ -245,7 +256,7 @@ export default function NovelEditForm({ novel }: { novel: Novel }) {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <Link
         href="/admin/novels"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -412,6 +423,38 @@ export default function NovelEditForm({ novel }: { novel: Novel }) {
                 placeholder="https://..."
                 className="mt-1"
               />
+            </div>
+
+            {/* Content Warnings */}
+            <div className="space-y-2">
+              <Label>Попередження про контент</Label>
+              <div className="flex flex-wrap gap-2">
+                {contentWarningOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                      contentWarnings.includes(option.value)
+                        ? `${option.color} border-transparent text-white`
+                        : 'border-input bg-background hover:bg-muted/50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={contentWarnings.includes(option.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setContentWarnings([...contentWarnings, option.value])
+                          setIsExplicit(true)
+                        } else {
+                          setContentWarnings(contentWarnings.filter(warning => warning !== option.value))
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Genres */}

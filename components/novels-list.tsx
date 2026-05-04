@@ -77,7 +77,7 @@ export default function NovelsList({ initialNovels, totalCount }: NovelsListProp
     setIsLoading(true)
     try {
       const nextPage = page + 1
-      const res = await fetch(`/api/novels?page=${nextPage}&limit=8`)
+      const res = await fetch(`/api/novels?page=${nextPage}&limit=8&sortBy=created&sortOrder=desc`)
       if (res.ok) {
         const data = await res.json()
         setNovels(prev => {
@@ -97,7 +97,7 @@ export default function NovelsList({ initialNovels, totalCount }: NovelsListProp
     <div>
       <div className="mb-4 flex items-center gap-2">
         <BookOpen className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-semibold">Всі новели</h2>
+        <h2 className="text-xl font-semibold">Останні оновлення</h2>
       </div>
 
       <div className="flex flex-col gap-3">

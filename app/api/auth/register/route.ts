@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { sendVerificationEmail } from '@/lib/email'
 import { isValidationResponse, parseJsonBody, registerSchema } from '@/lib/validation'
+import { DEFAULT_AVATAR_URL } from '@/lib/default-avatar'
 
 export async function POST(request: Request) {
   try {
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       data: {
         name,
         email,
+        image: DEFAULT_AVATAR_URL,
         passwordHash,
         emailVerified: null,
       },

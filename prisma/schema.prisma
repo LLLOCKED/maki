@@ -20,6 +20,12 @@ enum TeamRole {
   member
 }
 
+enum TeamJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ModerationStatus {
   PENDING
   APPROVED
@@ -52,6 +58,19 @@ enum BookmarkStatus {
   planned
   completed
   dropped
+}
+
+enum ReportTargetType {
+  NOVEL
+  CHAPTER
+  COMMENT
+  FORUM_COMMENT
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
 }
 
 model Account {
@@ -98,23 +117,27 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
-  favorites     Novel[]       @relation("UserFavorites")
   comments      Comment[]
   teamMemberships TeamMembership[]
+  teamJoinRequests TeamJoinRequest[]
   ratings       Rating[]
   collections   Collection[]
   bookmarks     Bookmark[]
   forumTopics   ForumTopic[]
   forumComments ForumComment[]
   forumTopicVotes ForumTopicVote[]
+  commentVotes CommentVote[]
+  forumCommentVotes ForumCommentVote[]
   novels      Novel[]     @relation("UserNovels")
   warnings     UserWarning[] @relation("UserWarnings")
   activityLogs AdminActivityLog[]
   issuedWarnings UserWarning[] @relation("WarningIssuer")
   novelViews    NovelView[]
   notifications Notification[]
-  userFavorites Favorite[]
+  favorites    Favorite[]
   teamFollows   TeamFollow[]
+  contentReports ContentReport[] @relation("ReportAuthor")
+  resolvedReports ContentReport[] @relation("ReportResolver")
 }
 
 model Collection {
@@ -195,6 +218,7 @@ model Bookmark {
   novelId          String
   status           BookmarkStatus
   readingPosition  Int?     // chapter number where user stopped reading
+  readingProgress  Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -270,10 +294,27 @@ model ForumComment {
   topic   ForumTopic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
   parent  ForumComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies ForumComment[] @relation("CommentReplies")
+  votes   ForumCommentVote[]
+  reports ContentReport[]
 
   @@index([topicId])
   @@index([userId])
   @@index([parentId])
+}
+
+model ForumCommentVote {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
 }
 
 model Publisher {
@@ -299,6 +340,7 @@ model Team {
   bannerUrl   String?
   createdAt   DateTime @default(now())
   members     TeamMembership[]
+  joinRequests TeamJoinRequest[]
   chapters    Chapter[]
   notifications Notification[]
   followers     TeamFollow[]
@@ -317,6 +359,22 @@ model TeamMembership {
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([userId, teamId])
+}
+
+model TeamJoinRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  status    TeamJoinRequestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId, status])
+  @@index([userId, status])
 }
 
 model TeamFollow {
@@ -352,13 +410,13 @@ model Novel {
   donationUrl      String?  // посилання на донати для ORIGINAL тайтлів
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
   authorId         String?  // For ORIGINAL type novels - the author user
 
   chapters     Chapter[]
   genres       NovelGenre[]
   publishers   NovelPublisher[]
   authors      NovelAuthor[]
-  favoritedBy  User[]       @relation("UserFavorites")
   comments     Comment[]
   ratings      Rating[]
   tags         NovelTag[]
@@ -369,9 +427,11 @@ model Novel {
   author       User?     @relation("UserNovels", fields: [authorId], references: [id], onDelete: SetNull)
   notifications Notification[]
   favorites    Favorite[]
+  reports      ContentReport[]
 
   @@index([slug])
   @@index([authorId])
+  @@index([deletedAt])
 }
 
 model NovelPublisher {
@@ -397,7 +457,7 @@ model NovelAuthor {
 model Chapter {
   id        String   @id @default(cuid())
   title     String
-  number    Int
+  number    Float
   volume    Int?     // том (необов'язково)
   content   String
   novelId   String
@@ -405,15 +465,50 @@ model Chapter {
   moderationStatus ModerationStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   novel    Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
   team     Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
   comments Comment[]
   notifications Notification[]
+  reports ContentReport[]
 
   @@index([novelId])
   @@index([teamId])
   @@index([volume])
+  @@index([deletedAt])
+}
+
+model ContentReport {
+  id          String           @id @default(cuid())
+  targetType  ReportTargetType
+  reason      String
+  details     String?
+  status      ReportStatus     @default(OPEN)
+  userId      String
+  novelId     String?
+  chapterId   String?
+  commentId   String?
+  forumCommentId String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  resolvedAt  DateTime?
+  resolvedBy  String?
+
+  user      User     @relation("ReportAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  resolver  User?    @relation("ReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+  novel     Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  forumComment ForumComment? @relation(fields: [forumCommentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([targetType])
+  @@index([userId])
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([commentId])
+  @@index([forumCommentId])
 }
 
 model Genre {
@@ -448,10 +543,27 @@ model Comment {
   chapter  Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies  Comment[] @relation("CommentReplies")
+  votes    CommentVote[]
+  reports  ContentReport[]
 
   @@index([novelId])
   @@index([chapterId])
   @@index([parentId])
+}
+
+model CommentVote {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
 }
 
 model UserWarning {

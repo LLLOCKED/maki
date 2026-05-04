@@ -3,11 +3,13 @@
 import { useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { User, Upload, Loader2, X } from 'lucide-react'
+import { DEFAULT_AVATAR_URL } from '@/lib/default-avatar'
 
 function extractFTPPath(url: string): { filename: string; folder: string } | null {
   if (!url || !url.includes('edge-drive.cdn.express')) return null
@@ -20,12 +22,12 @@ export default function ProfileSettings() {
   const { data: session, update } = useSession()
   const router = useRouter()
   const [name, setName] = useState(session?.user?.name || '')
-  const [avatarUrl, setAvatarUrl] = useState(session?.user?.image || '')
+  const [avatarUrl, setAvatarUrl] = useState(session?.user?.image || DEFAULT_AVATAR_URL)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const originalAvatarUrl = session?.user?.image || ''
+  const originalAvatarUrl = session?.user?.image || DEFAULT_AVATAR_URL
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -59,7 +61,7 @@ export default function ProfileSettings() {
   }
 
   const handleRemoveAvatar = () => {
-    setAvatarUrl('')
+    setAvatarUrl(DEFAULT_AVATAR_URL)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +78,8 @@ export default function ProfileSettings() {
 
       if (!res.ok) {
         const data = await res.json()
-        setError(data.error || 'Failed to update profile')
+        setError(data.error || 'Не вдалось оновити профіль')
+        toast.error(data.error || 'Не вдалось оновити профіль')
         return
       }
 
@@ -92,10 +95,12 @@ export default function ProfileSettings() {
         }
       }
 
-      await update()
+      await update({ name, image: avatarUrl })
       router.refresh()
+      toast.success('Профіль оновлено')
     } catch (err) {
-      setError('Failed to update profile')
+      setError('Не вдалось оновити профіль')
+      toast.error('Не вдалось оновити профіль')
     } finally {
       setIsLoading(false)
     }
@@ -156,7 +161,7 @@ export default function ProfileSettings() {
                   )}
                   Завантажити
                 </Button>
-                {avatarUrl && (
+                {avatarUrl && avatarUrl !== DEFAULT_AVATAR_URL && (
                   <Button
                     type="button"
                     variant="outline"

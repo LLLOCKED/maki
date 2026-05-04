@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, ChangeEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import mammoth from 'mammoth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,6 +25,7 @@ export default function ChapterForm() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [isLoading, setIsLoading] = useState(false)
+  const [fileLoading, setFileLoading] = useState(false)
   const [novelId, setNovelId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [number, setNumber] = useState('')
@@ -31,7 +33,32 @@ export default function ChapterForm() {
   const [content, setContent] = useState('')
   const [teamId, setTeamId] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
+  const [novelType, setNovelType] = useState<'ORIGINAL' | 'TRANSLATED' | null>(null)
   const [isPreview, setIsPreview] = useState(false)
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setFileLoading(true)
+    try {
+      if (file.name.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer()
+        const result = await (mammoth as any).convertToMarkdown({ arrayBuffer })
+        setContent(result.value)
+      } else if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+        const text = await file.text()
+        setContent(text)
+      } else {
+        alert('Підтримуються тільки .docx, .md, .txt файли')
+      }
+    } catch (error) {
+      console.error('File read error:', error)
+      alert('Помилка при читанні файлу')
+    } finally {
+      setFileLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!novelSlug) return
@@ -41,6 +68,7 @@ export default function ChapterForm() {
       .then((r) => r.json())
       .then((novel) => {
         setNovelId(novel.id)
+        setNovelType(novel.type === 'ORIGINAL' ? 'ORIGINAL' : 'TRANSLATED')
       })
   }, [novelSlug])
 
@@ -48,12 +76,23 @@ export default function ChapterForm() {
     // Fetch teams the user is a member of
     fetch('/api/teams?mine=true')
       .then((r) => r.json())
-      .then(setTeams)
+      .then(teams => {
+        setTeams(teams)
+        if (teams.length > 0) {
+          setTeamId(teams[0].id)
+        }
+      })
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!novelId || !title || !number) return
+    
+    // Validate team for translated novels
+    if (novelType === 'TRANSLATED' && !teamId) {
+        alert('Виберіть команду')
+        return
+    }
 
     setIsLoading(true)
     try {
@@ -62,11 +101,11 @@ export default function ChapterForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          number: parseInt(number),
+          number: parseFloat(number),
           volume: volume ? parseInt(volume) : null,
           content,
           novelId,
-          teamId: teamId || null,
+          teamId: (novelType === 'TRANSLATED') ? teamId : null,
         }),
       })
 
@@ -85,6 +124,23 @@ export default function ChapterForm() {
     }
   }
 
+  async function uploadChapterImage(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/upload/chapter-image', {
+      method: 'POST',
+      body: formData,
+    })
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || 'Не вдалось завантажити зображення')
+    }
+
+    return data.url
+  }
+
   if (!novelSlug) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -97,7 +153,7 @@ export default function ChapterForm() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <Link
         href={`/novel/${novelSlug}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -117,8 +173,9 @@ export default function ChapterForm() {
               <Input
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
-                placeholder="1"
+                placeholder="1.5"
                 type="number"
+                step="any"
                 className="mt-1 w-32"
                 required
               />
@@ -147,8 +204,20 @@ export default function ChapterForm() {
             </div>
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <Label>Контент (Markdown)</Label>
+              <Label>Контент (Markdown)</Label>
+              <div className="mt-2 mb-4 p-4 border rounded-md bg-muted/20">
+                <Label className="text-sm font-medium mb-1 block">Завантажити з файлу (docx, md, txt)</Label>
+                <Input
+                  type="file"
+                  accept=".docx,.md,.txt"
+                  onChange={handleFileUpload}
+                  className="w-full"
+                  disabled={fileLoading}
+                />
+                {fileLoading && <p className="text-sm text-muted-foreground mt-1">Зчитування файлу...</p>}
+              </div>
+
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex gap-1">
                   <Button
                     type="button"
@@ -178,10 +247,11 @@ export default function ChapterForm() {
                     textareaRef={textareaRef}
                     value={content}
                     onChange={setContent}
+                    uploadImage={uploadChapterImage}
                   />
                 )}
                 {isPreview ? (
-                  <div className="markdown-content p-4">
+                  <div className="markdown-content p-4 max-w-full break-words">
                     {content ? (
                       <SafeMarkdown>{content}</SafeMarkdown>
                     ) : (
@@ -201,21 +271,23 @@ export default function ChapterForm() {
               </div>
             </div>
 
-            <div>
-              <Label>Команда перекладу</Label>
-              <select
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                className="mt-1 w-full rounded-md border bg-background px-3 py-2"
-              >
-                <option value="">Без команди</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {novelType === 'TRANSLATED' && (
+              <div>
+                <Label>Команда перекладу *</Label>
+                <select
+                  value={teamId}
+                  onChange={(e) => setTeamId(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+                  required
+                >
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <Button type="submit" disabled={isLoading || !novelId}>

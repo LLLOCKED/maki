@@ -2,7 +2,20 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, BookOpen, BookText, Star } from 'lucide-react'
+import { BookOpen, BookText } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+
+const contentWarningLabels: Record<string, string> = {
+  violence: 'Насилля',
+  gore: 'Кров\'яні сцени',
+  sexual: 'Сексуальний контент',
+  psychological: 'Психологічний тиск',
+  'self-harm': 'Самогубство/самопошкодження',
+}
 
 interface HorizontalNovelCardProps {
   novel: {
@@ -32,6 +45,13 @@ function formatDate(date: Date): string {
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
 }
 
+function truncateToSentences(text: string, maxSentences: number = 3): string {
+  if (!text) return ''
+  const sentences = text.split(/(?<=[.!?])\s+/)
+  if (sentences.length <= maxSentences) return text
+  return sentences.slice(0, maxSentences).join(' ') + '...'
+}
+
 export default function HorizontalNovelCard({ novel }: HorizontalNovelCardProps) {
   const latestChapter = novel.chapters?.[0]
   const volStr = latestChapter?.volume ? `${latestChapter.volume}.` : ''
@@ -45,76 +65,73 @@ export default function HorizontalNovelCard({ novel }: HorizontalNovelCardProps)
   return (
     <Link href={cardHref} className="block">
       <Card className="flex overflow-hidden transition-all hover:shadow-lg">
-        <div className="relative h-48 w-32 flex-shrink-0 overflow-hidden bg-muted sm:h-56 sm:w-40">
+        <div className="relative aspect-[3/4] w-24 flex-shrink-0 overflow-hidden bg-muted sm:w-32 md:w-40">
           {novel.coverUrl ? (
             <Image
               src={novel.coverUrl}
               alt={novel.title}
               fill
-              sizes="(min-width: 640px) 160px, 128px"
+              sizes="(min-width: 768px) 160px, (min-width: 640px) 128px, 96px"
               loading="eager"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <BookOpen className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+              <BookOpen className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
             </div>
           )}
           {novel.isExplicit && (
-            <div className="absolute top-2 left-2">
-              <span className="px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold">
-                18+
-              </span>
-            </div>
-          )}
-          {novel.contentWarnings && novel.contentWarnings.length > 0 && (
-            <div className="absolute top-2 right-2 flex flex-col gap-1">
-              {novel.contentWarnings.slice(0, 2).map((warning) => (
-                <span key={warning} className="px-1.5 py-0.5 text-xs text-white bg-red-500 rounded">
-                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="absolute top-2 left-2 px-1.5 py-0.5 text-xs text-white bg-red-600 rounded font-bold cursor-help">
+                  18+
                 </span>
-              ))}
-            </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-medium">Контент 18+</p>
+                {novel.contentWarnings && novel.contentWarnings.length > 0 && (
+                  <>
+                    <p className="font-medium">Попередження:</p>
+                    {novel.contentWarnings.map((warning) => (
+                      <p key={warning}>{contentWarningLabels[warning] || warning}</p>
+                    ))}
+                  </>
+                )}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
 
-        <div className="flex flex-1 flex-col justify-between p-4">
-          <div>
-            <h3 className="text-lg font-semibold leading-tight">{novel.title}</h3>
+        <div className="flex flex-1 flex-col justify-between p-2 sm:p-3 md:p-4 min-w-0 overflow-hidden">
+          <div className="min-w-0 overflow-hidden">
+            <h3 className="text-sm sm:text-base font-semibold leading-tight line-clamp-2">{novel.title}</h3>
             {authorNames && (
-              <p className="mt-1 text-sm text-muted-foreground">{authorNames}</p>
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-1">{authorNames}</p>
             )}
 
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1">
               {novel.genres.slice(0, 3).map(({ genre }) => (
-                <Badge key={genre.slug} variant="secondary" className="text-xs">
+                <Badge key={genre.slug} variant="secondary" className="text-[10px] sm:text-xs">
                   {genre.name}
                 </Badge>
               ))}
             </div>
 
-            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-              {novel.description}
+            <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground hidden sm:block">
+              {truncateToSentences(novel.description, 3)}
             </p>
           </div>
 
-          <div className="mt-4 flex flex-col gap-2">
+          <div className="mt-2 sm:mt-4 flex flex-col gap-1 sm:gap-2">
             {latestChapter && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <BookText className="h-3 w-3" />
-                <span>Розд. {latestChapter.number}</span>
-                <span className="truncate">{latestChapter.title}</span>
-                <span>·</span>
-                <span>{formatDate(latestChapter.createdAt)}</span>
+              <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground min-w-0">
+                <BookText className="h-3 w-3 flex-shrink-0" />
+                <span className="flex-shrink-0">Розд. {latestChapter.number}</span>
+                <span className="truncate min-w-0 flex-1">{latestChapter.title}</span>
+                <span className="flex-shrink-0">·</span>
+                <span className="flex-shrink-0">{formatDate(latestChapter.createdAt)}</span>
               </div>
             )}
-
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-medium">
-                {novel.averageRating.toFixed(1)}
-              </span>
-            </div>
           </div>
         </div>
       </Card>
